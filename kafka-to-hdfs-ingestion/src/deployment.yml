@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-hdfs-ingester
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-hdfs-ingester
+  template:
+    metadata:
+      labels:
+        app: kafka-hdfs-ingester
+    spec:
+      containers:
+      - name: kafka-hdfs-ingester
+        image: kafka-hdfs-ingester_img
+        env:
+        - name: KAFKA_TOPIC
+          value: "topic_name"
+        - name: KAFKA_BROKER
+          value: "kafka_broker:9092"
+        - name: HDFS_PATH
+          value: "hdfs://hdfs_server:port/path/output.parquet"
+
