@@ -1,0 +1,4 @@
+[submodule "weather-data-ingestion/dmi_meteorological_api/dmi_open_data"]
+	path = weather-data-ingestion/dmi_meteorological_api/dmi_open_data
+	url = C:/GitHubDesctopRepositories/Weather_Energy_BigData/weather-data-ingestion/dmi_meteorological_api/dmi_open_data
+	branch = master
