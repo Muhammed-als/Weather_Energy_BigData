@@ -1,7 +1,7 @@
 @echo off
 
 echo ========== Deploy Redpanda - Ref: Lecture 3 Exercise 3 ==========
-cd /d %~dp0\Kafka_deployment_files
+cd /d %~dp0\deployment_files
 kubectl apply -f redpanda.yaml
 setlocal
 :: Define the path for the temporary file
