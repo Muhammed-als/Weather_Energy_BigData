@@ -20,12 +20,14 @@ def writeToHDFS(data):
     pq.write_table(table,HDFS_PATH,"output.parquet",append=True)
 def main():
     data = []
-    for record in consumeMessages():
-        data.append(record)
-        # Instead of write each record alone, we write for every 100 records, which reduce the amount of I/O operatons. 
-        if len(data) > 100: 
-            writeToHDFS(data)
-            data.clear()  # Clear data after writing
+    while True:
+        for record in consumeMessages():
+            data.append(record)
+            print("record " + record + "is added to the array" )
+            if (len(data)>100):
+                writeToHDFS(data)
+                print("data are written to hdfs" )
+                data.clear()
 
 if __name__ == "__main__":
     main()
