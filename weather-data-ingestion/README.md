@@ -13,6 +13,7 @@
         - GRIB format requires specialized tooling to parse: [Official tooling](https://confluence.ecmwf.int/display/ECC/GRIB+tools)
         - Example: [Download process and save forecast data](https://github.com/angelinkatula/Preprocessing-forecast-data-from-DMI/blob/main/Preprocessing%20DMI%20forecast%20data.ipynb)
         - Better for large queries
+        - [pygrib](https://jswhit.github.io/pygrib/api.html)
 
     - [Forecast_Data_EDR_API](https://opendatadocs.dmi.govcloud.dk/en/APIs/Forecast_Data_EDR_API) - 24 hours forecast. Files in [GeoJSON](https://geojson.org/) or [CoverageJSON](https://covjson.org/)
         -  Supports the following filtering options:
