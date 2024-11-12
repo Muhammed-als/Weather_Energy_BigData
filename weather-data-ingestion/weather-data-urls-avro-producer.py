@@ -1,100 +1,10 @@
-from confluent_kafka import Producer
-from confluent_kafka.schema_registry import SchemaRegistryClient
-from confluent_kafka.schema_registry.avro import AvroSerializer
-from confluent_kafka.serialization import StringSerializer, SerializationContext, MessageField
-import requests
-import json
 from datetime import datetime, timedelta
-from pprint import pprint
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-def on_msg_delivery(err, msg):
-    if err is not None:
-        print(f"Delivery failed for record {msg.key()}: {err}")
-    else:
-        print(f'Record {msg.key()} successfully produced to {msg.topic()} partition {msg.partition()} at offset {msg.offset()}')
-
-class KafkaProducer:
-    def __init__(self, kafka_server, schema_registry, topic, avro_schema = None):
-        self.schema_registry_client = SchemaRegistryClient(schema_registry)
-
-        # Initialize AvroSerializer with the schema registry client and Avro schema if schema is provided
-        if avro_schema is not None:
-            self.avro_serializer = AvroSerializer(
-                self.schema_registry_client,
-                json.dumps(avro_schema)
-            )
-        else:
-            self.avro_serializer = None
-        self.string_serializer = StringSerializer('utf-8')
-        self.producer = Producer(kafka_server)
-        self.topic = topic
-
-    def produce_message(self, key, record) -> bool:
-        try:
-            # Produce the message to Kafka
-            serializedValue = None
-            if self.avro_serializer is not None:
-                serializedValue = self.avro_serializer(record, SerializationContext(self.topic, MessageField.VALUE))
-            else:
-                serializedValue = self.string_serializer(record, SerializationContext(self.topic, MessageField.VALUE))
-
-
-            self.producer.produce(topic=self.topic,
-                                    key=self.string_serializer(key), 
-                                    value=serializedValue,
-                                    on_delivery=on_msg_delivery)
-            self.producer.flush()  # Ensure all messages are sent
-        except Exception as e:
-            print(f"Failed to produce message: {e}")
-            return False
-        return True
-
-class DmiForecastClient:
-    _model = 'harmonie_dini_sf' # model Harmonie - Denmark, Iceland, Netherlands and Ireland - surface
-
-    def __init__(self, model_run, api_key, bbox):     
-        self._model_run = model_run
-        self._api_key = api_key
-        self._bbox = bbox
-
-    def getForecastUrls(self) -> list | list | int:
-        url = f'https://dmigw.govcloud.dk/v1/forecastdata/collections/{self._model}/items?modelRun={self._model_run}&bbox={self._bbox}&api-key={self._api_key}'
-        r = requests.get(url)
-
-        if r.status_code != 200:
-            print(f"Error - request not 200, but insted {r.status_code}")
-            return {}, {}, 0
-
-        data = r.json()
-        if data['numberReturned'] != 61:
-            print("Error - Not exactly 61 returned urls ")
-            print(f"numberReturned: {data['numberReturned']}")
-            if data['numberReturned'] == 0:
-                return {}, {}, data['numberReturned']
-            #print("First data entry:")
-            #pprint(data['features'][0])
-            #if data['numberReturned'] > 1:
-            #    print("Last entry:")
-            #    pprint(data['features'][data['numberReturned']-1])
-            return {}, {}, data['numberReturned']
-
-        return_list = []
-        keys = []
-        for feature in data['features']:
-            list_element = {
-                'url': feature['asset']['data']['href'],
-                'bbox': feature['bbox'],
-                'properties': feature['properties']
-            }
-            return_list.append(list_element)
-            keys.append(feature['id'])
-
-        return keys, return_list, data['numberReturned']   
-
-
+from src.dmi_forecast_client import DMIForecastClient
+from src.kafka_clients import KafkaProducer
 
 # Avro schema for the JSON structure
 AVRO_SCHEMA = {
@@ -117,7 +27,7 @@ AVRO_SCHEMA = {
 
 def getCurrentModelrunDatetimeRounded() -> str:
     current_datetime = datetime.now()
-    rounded_datetime = current_datetime - timedelta(hours=(current_datetime.hour-1) % 3 +1, # accounting for beeing one hour ahead
+    rounded_datetime = current_datetime - timedelta(hours=(current_datetime.hour) % 3, # When accounting for beeing one hour ahead: hours=(current_datetime.hour-1) % 3 +1
                                                     minutes=current_datetime.minute, 
                                                     seconds=current_datetime.second, 
                                                     microseconds=current_datetime.microsecond)
@@ -135,7 +45,7 @@ def queryDMIandPushToKafka() -> int:
 
     # Create producer from class above
     producer = KafkaProducer(kafka_server=kafkaServer, schema_registry=schemaRegistry, topic=topic, avro_schema=AVRO_SCHEMA)
-    dmiCli = DmiForecastClient(model_run=modelrun_datetime, api_key='a4a02c6a-ae8e-4ee6-97d4-0a99e656d3da', bbox='7,54,16,58')
+    dmiCli = DMIForecastClient(model_run=modelrun_datetime, api_key='a4a02c6a-ae8e-4ee6-97d4-0a99e656d3da', bbox='7,54,16,58')
 
     # GET dmi data data to be sent
     keys, records, urlCount = dmiCli.getForecastUrls()

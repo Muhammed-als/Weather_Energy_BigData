@@ -13,7 +13,14 @@ set "tempFile=%TEMP%\autoexec_temp.bat"
 	echo echo Waiting for pod Ready ^(timeout=20s^) . . .
     echo kubectl wait --for=condition=Ready pod -l app=redpanda --timeout=20s
 	echo echo Start port-forward
-	echo kubectl port-forward svc/redpanda 8080
+    echo :portForwardLoop
+    echo kubectl port-forward svc/redpanda 8080
+    echo if errorlevel 1 ^(
+    echo     echo Port-forward failed, retrying in 10 seconds . . .
+    echo     timeout /t 10 /nobreak
+	echo     echo Re-starting port-forward
+    echo     goto :portForwardLoop
+    echo ^)
 ) > "%tempFile%"
 :: Execute the temporary file in a new terminal window
 start "" "%tempFile%"
