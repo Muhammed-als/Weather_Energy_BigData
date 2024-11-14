@@ -5,7 +5,7 @@ import os
 
 KELVIN = 273.15
 
-url = 'https://dmigw.govcloud.dk/v1/forecastdata/download/HARMONIE_DINI_SF_2024-11-06T060000Z_2024-11-06T060000Z.grib?api-key=a4a02c6a-ae8e-4ee6-97d4-0a99e656d3da'
+url = 'https://dmigw.govcloud.dk/v1/forecastdata/download/HARMONIE_DINI_SF_2024-11-14T060000Z_2024-11-14T060000Z.grib?api-key=a4a02c6a-ae8e-4ee6-97d4-0a99e656d3da'
 
 #download file
 #response = requests.get(url, verify=False)
