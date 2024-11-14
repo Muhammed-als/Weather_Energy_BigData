@@ -1,0 +1,23 @@
+{
+    "name": "hdfs-sink-avro",
+    "config": {
+      "connector.class": "io.confluent.connect.hdfs.HdfsSinkConnector",
+      "tasks.max": "3",
+      "topics": "ENERGY_DATA_AVRO_2",
+      "hdfs.url": "hdfs://namenode:9000",
+      "flush.size": "3",
+      "format.class": "io.confluent.connect.hdfs.avro.AvroFormat",
+      "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+      "key.converter.schemas.enable": "false",
+      "value.converter": "io.confluent.connect.avro.AvroConverter",
+      "value.converter.schema.registry.url": "http://kafka-schema-registry:8081",
+      "schema.compatibility": "FORWARD",
+      "partitioner.class": "io.confluent.connect.storage.partitioner.TimeBasedPartitioner",
+      "path.format": "'year'=YYYY/'month'=MM/'day'=dd/'hour'=HH",
+      "partition.duration.ms": "3600000",
+      "locale": "en-US",
+      "timezone": "UTC",
+      "timestamp.extractor": "Record",
+      "timestamp.field": "HourUTC"
+    }
+  }
