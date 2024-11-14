@@ -27,7 +27,7 @@ AVRO_SCHEMA = {
 
 def getCurrentModelrunDatetimeRounded() -> str:
     current_datetime = datetime.now()
-    rounded_datetime = current_datetime - timedelta(hours=(current_datetime.hour) % 3, # When accounting for beeing one hour ahead: hours=(current_datetime.hour-1) % 3 +1
+    rounded_datetime = current_datetime - timedelta(hours=(current_datetime.hour-1) % 3 +1, # When accounting for beeing one hour ahead: hours=(current_datetime.hour-1) % 3 +1
                                                     minutes=current_datetime.minute, 
                                                     seconds=current_datetime.second, 
                                                     microseconds=current_datetime.microsecond)
@@ -35,7 +35,7 @@ def getCurrentModelrunDatetimeRounded() -> str:
 
 def queryDMIandPushToKafka() -> int:
     # Get the current datetime rounded down to latest hour divisible by 3
-    modelrun_datetime = getCurrentModelrunDatetimeRounded() 
+    modelrun_datetime = getCurrentModelrunDatetimeRounded()
     print(f"Querying modelrun with date: {modelrun_datetime}")
 
     # Kafka configs
@@ -79,14 +79,14 @@ def cronJob():
         else: # situation where the job didn't return true we need to retry every 5 min. 
             producerLog.produce_message(f"ModelRun: {getCurrentModelrunDatetimeRounded()}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Scheduling retry every 5 minutes")
             scheduler.remove_job('main_job')
-            scheduler.add_job(cronJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True)
+            scheduler.add_job(cronJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
             return
 
     elif scheduler.get_job('retry_job'):
         if urlCount == 61: # job finally returned true. reset to 3 hour intival cron job.
             producerLog.produce_message(f"ModelRun: {getCurrentModelrunDatetimeRounded()}", f"Successfully produced 61 messages to Kafkatopic FORECAST_DOWNLOAD_URLS in retry")
             scheduler.remove_job('retry_job')
-            scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True)
+            scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
             return
         else:
             producerLog.produce_message(f"ModelRun: {getCurrentModelrunDatetimeRounded()}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Retrying again in 5 minutes")
@@ -96,8 +96,8 @@ def cronJob():
 def printJobSchedulerStatus():
     scheduler.print_jobs()
 
-scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=1), id='printstatus_job', replace_existing=True)
-scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0, second=0), id='main_job', replace_existing=True)
+scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=5), id='printstatus_job', replace_existing=True, max_instances=10)
+scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0, second=0), id='main_job', replace_existing=True, max_instances=10)
 
 cronJob()
 
