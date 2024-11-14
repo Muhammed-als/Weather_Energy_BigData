@@ -39,8 +39,8 @@ def queryDMIandPushToKafka() -> int:
     print(f"Querying modelrun with date: {modelrun_datetime}")
 
     # Kafka configs
-    kafkaServer = {'bootstrap.servers': 'kafka:9092'}
-    schemaRegistry = {'url': 'http://kafka-schema-registry:8081'} 
+    kafkaServer = 'kafka:9092'
+    schemaRegistry = 'http://kafka-schema-registry:8081'
     topic = 'FORECAST_DOWNLOAD_URLS'
 
     # Create producer from class above
@@ -65,8 +65,8 @@ scheduler = BlockingScheduler()
 
 def cronJob():
     # Kafka config for logging
-    kafkaServer = {'bootstrap.servers': 'kafka:9092'}
-    schemaRegistry = {'url': 'http://kafka-schema-registry:8081'} 
+    kafkaServer = 'kafka:9092'
+    schemaRegistry = 'http://kafka-schema-registry:8081' 
     topic = 'FORECAST_DOWNLOAD_URLS_LOG'
     
     producerLog = KafkaProducer(kafka_server=kafkaServer, schema_registry=schemaRegistry, topic=topic)

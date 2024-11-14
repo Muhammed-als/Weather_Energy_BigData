@@ -18,7 +18,7 @@ def on_consume_commit(err, partitions):
 
 class KafkaConsumer:
     def __init__(self, kafka_server, schema_registry, topic, groupID, offset):
-        self.schema_registry_client = SchemaRegistryClient(schema_registry)
+        self.schema_registry_client = SchemaRegistryClient({'url': schema_registry})
 
         self.avro_deserializer = AvroDeserializer(
             schema_registry_client=schema_registry
@@ -35,7 +35,7 @@ class KafkaConsumer:
 
     def consume_message(self):
 
-        msg = self.consumer.poll(10)
+        msg = self.consumer.poll(2)
         if msg is None:
             print("Error: Consumed message was None")
         
@@ -44,7 +44,7 @@ class KafkaConsumer:
 
 class KafkaProducer:
     def __init__(self, kafka_server, schema_registry, topic, avro_schema = None):
-        self.schema_registry_client = SchemaRegistryClient(schema_registry)
+        self.schema_registry_client = SchemaRegistryClient({'url': schema_registry})
 
         # Initialize AvroSerializer with the schema registry client and Avro schema if schema is provided
         if avro_schema is not None:
@@ -55,7 +55,7 @@ class KafkaProducer:
         else:
             self.avro_serializer = None
         self.string_serializer = StringSerializer('utf-8')
-        self.producer = Producer(kafka_server)
+        self.producer = Producer({'bootstrap.servers': kafka_server})
         self.topic = topic
 
     def produce_message(self, key, record) -> bool:
