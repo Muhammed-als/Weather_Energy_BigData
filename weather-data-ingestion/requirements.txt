@@ -1,0 +1,2 @@
+dmi-open-data
+pip install schedule
