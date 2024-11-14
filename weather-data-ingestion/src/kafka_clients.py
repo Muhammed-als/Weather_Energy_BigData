@@ -3,6 +3,7 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer, AvroDeserializer
 from confluent_kafka.serialization import StringSerializer, SerializationContext, MessageField
 import json
+from pprint import pprint
 
 def on_msg_delivery(err, msg):
     if err is not None:
@@ -14,33 +15,52 @@ def on_consume_commit(err, partitions):
     if err:
         print(f"Commit failed: {err}")
     else:
-        print(f"Committed offsets: {partitions}")
+        print(f"Committed offsets:")
+        pprint(partitions)
 
 class KafkaConsumer:
-    def __init__(self, kafka_server, schema_registry, topic, groupID, offset):
+    def __init__(self, kafka_server, schema_registry, topic, offset, groupID=None, use_avro = True, avro_schema=None, enable_auto_commit = False):
         self.schema_registry_client = SchemaRegistryClient({'url': schema_registry})
+        self.topic = topic
 
-        self.avro_deserializer = AvroDeserializer(
-            schema_registry_client=schema_registry
-        )
+        if use_avro:
+            if avro_schema is not None:
+                self.avro_deserializer = AvroDeserializer(
+                    schema_registry_client=self.schema_registry_client,
+                    schema_str=avro_schema
+                )
+            else:
+                self.avro_deserializer = AvroDeserializer(
+                    schema_registry_client=self.schema_registry_client
+                )
+        else:
+            self.avro_deserializer = None
 
         consumer_conf = {
             'bootstrap.servers': kafka_server,
-            'group.id': groupID,
+            'group.id': 'DEFAULT_CONSUMER' if groupID is None else groupID,
             'auto.offset.reset': offset,
-            'on_commit': on_consume_commit
+            'on_commit': on_consume_commit,
+            'enable.auto.commit': enable_auto_commit
         }
         self.consumer = Consumer(consumer_conf)
-        self.consumer.subscribe([topic])
+        self.consumer.subscribe([self.topic])
 
     def consume_message(self):
-
-        msg = self.consumer.poll(2)
+        msg = self.consumer.poll(5)
+        
         if msg is None:
             print("Error: Consumed message was None")
-        
-        return msg
+            return None, None, None
 
+        if self.avro_deserializer is not None:
+            return msg, msg.key(), self.avro_deserializer(msg.value(), SerializationContext(msg.topic(), MessageField.VALUE))
+        else:
+            return msg, msg.key(), msg.value()
+        
+    def close(self):
+        self.consumer.close()
+        
 
 class KafkaProducer:
     def __init__(self, kafka_server, schema_registry, topic, avro_schema = None):
@@ -58,7 +78,7 @@ class KafkaProducer:
         self.producer = Producer({'bootstrap.servers': kafka_server})
         self.topic = topic
 
-    def produce_message(self, key, record) -> bool:
+    def produce_message(self, key, record, partition = None) -> bool:
         try:
             # Produce the message to Kafka
             serializedValue = None
@@ -67,11 +87,17 @@ class KafkaProducer:
             else:
                 serializedValue = self.string_serializer(record, SerializationContext(self.topic, MessageField.VALUE))
 
-
-            self.producer.produce(topic=self.topic,
-                                    key=self.string_serializer(key), 
-                                    value=serializedValue,
-                                    on_delivery=on_msg_delivery)
+            if partition is not None:
+                self.producer.produce(topic=self.topic,
+                                        key=self.string_serializer(key), 
+                                        value=serializedValue,
+                                        partition=partition,
+                                        on_delivery=on_msg_delivery)
+            else:
+                self.producer.produce(topic=self.topic,
+                                        key=self.string_serializer(key), 
+                                        value=serializedValue,
+                                        on_delivery=on_msg_delivery)
             self.producer.flush()  # Ensure all messages are sent
         except Exception as e:
             print(f"Failed to produce message: {e}")
