@@ -7,6 +7,9 @@ from src.dmi_forecast_client import DMIForecastClient
 from src.kafka_clients import KafkaProducer, KafkaConsumer
 from src.utils import find_latest_date_string, get_next_model_run
 
+TOPIC_URLS = 'FORECAST_DOWNLOAD_URLS'
+TOPIC_LOGGING = 'FORECAST_DOWNLOAD_URLS_LOG'
+
 # Avro schema for the JSON structure
 AVRO_SCHEMA = {
     "type": "record",
@@ -39,20 +42,14 @@ def queryDMIandPushToKafka(modelrun_date = None) -> int:
     modelrun_datetime = getCurrentModelrun() if modelrun_date is None else modelrun_date
     print(f"Querying modelrun with date: {modelrun_datetime}")
 
-    # Kafka configs
-    kafkaServer = 'kafka:9092'
-    schemaRegistry = 'http://kafka-schema-registry:8081'
-    topic = 'FORECAST_DOWNLOAD_URLS'
-
     # Create producer from class above
-    producer = KafkaProducer(kafka_server=kafkaServer, schema_registry=schemaRegistry, topic=topic, avro_schema=AVRO_SCHEMA)
+    producer = KafkaProducer(topic=TOPIC_URLS, avro_schema=AVRO_SCHEMA)
     dmiCli = DMIForecastClient(model_run=modelrun_datetime, api_key='a4a02c6a-ae8e-4ee6-97d4-0a99e656d3da', bbox='7,54,16,58')
 
     # GET dmi data data to be sent
     keys, records, urlCount = dmiCli.getForecastUrls()
 
     if not keys:
-        print("Returned lists from getForecastUrls were empty")
         return urlCount
     
     partition = 0
@@ -62,53 +59,11 @@ def queryDMIandPushToKafka(modelrun_date = None) -> int:
         partition += 1
     return urlCount
 
-# Initialize the scheduler
-scheduler = BlockingScheduler()
-
-def cronJob(model_run = None):
-    # Kafka config for logging
-    kafkaServer = 'kafka:9092'
-    schemaRegistry = 'http://kafka-schema-registry:8081' 
-    topic = 'FORECAST_DOWNLOAD_URLS_LOG'
-    
-    producerLog = KafkaProducer(kafka_server=kafkaServer, schema_registry=schemaRegistry, topic=topic)
-
-    urlCount = queryDMIandPushToKafka(model_run)
-    while model_run is not None and urlCount == 61:
-        if getCurrentModelrun() == model_run:
-            break
-        producerLog.produce_message(f"ModelRun: {getCurrentModelrun()}", f"Successfully produced 61 messages from a previous run")
-        model_run = get_next_model_run(model_run)
-        urlCount = queryDMIandPushToKafka(model_run)
-
-    if scheduler.get_job('main_job'):
-        if urlCount == 61:
-            producerLog.produce_message(f"ModelRun: {getCurrentModelrun()}", f"Successfully produced 61 messages")
-            return
-        else: # situation where the job didn't return true we need to retry every 5 min. 
-            producerLog.produce_message(f"ModelRun: {getCurrentModelrun()}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Scheduling retry every 5 minutes")
-            scheduler.remove_job('main_job')
-            scheduler.add_job(cronJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
-            return
-
-    elif scheduler.get_job('retry_job'):
-        if urlCount == 61: # job finally returned true. reset to 3 hour intival cron job.
-            producerLog.produce_message(f"ModelRun: {getCurrentModelrun()}", f"Successfully produced 61 messages in retry")
-            scheduler.remove_job('retry_job')
-            scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
-            return
-        else:
-            producerLog.produce_message(f"ModelRun: {getCurrentModelrun()}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Retrying again in 5 minutes")
-            return
-
-def query_for_latest_model_run() -> bool:
-    kafkaServer = 'kafka:9092'
-    schemaRegistry = 'http://kafka-schema-registry:8081' 
-    topic = 'FORECAST_DOWNLOAD_URLS'
+def query_latest_committet_model_run() -> bool:
     groupID = 'Forecast_URL_Query_Group'
-    offset = 'latest'
+    offset = 'earliest'
 
-    consumer = KafkaConsumer(kafka_server=kafkaServer, schema_registry=schemaRegistry, topic=topic, offset=offset, groupID=groupID, avro_schema=AVRO_SCHEMA)
+    consumer = KafkaConsumer(topic=TOPIC_URLS, offset=offset, groupID=groupID, avro_schema=AVRO_SCHEMA)
 
     msgs = []
     keys = []
@@ -125,17 +80,81 @@ def query_for_latest_model_run() -> bool:
 
     consumer.close()
 
-    return find_latest_date_string(keys)
+    latest_model_run = find_latest_date_string(keys)
+    return latest_model_run
 
+def clear_scheduler_jobs(scheduler):
+    scheduler.remove_all_jobs()
+    scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=5), id='printstatus_job', replace_existing=True, max_instances=10)
+    return
+
+def cronJob():
+    producerLog = KafkaProducer(topic=TOPIC_LOGGING)
+
+    model_run = query_latest_committet_model_run()
+    print(f"Latest committet model run {model_run}")
+    print(f"Current model run is       {getCurrentModelrun()}")
+
+    # If the latest model run matches the current model run then we already have the latest available. Otherwise get the next run
+    if getCurrentModelrun() == model_run:
+        print("current model run == latest committet model run. returning from cronJob()")
+        return
+    model_run = get_next_model_run(model_run)
+    print(f"Next model run found to be {model_run}. Trying to get that. . .")
+
+    # While topic is not up to date, query the remaining model runs in order to catch up
+    urlCount = queryDMIandPushToKafka(model_run)
+    while urlCount == 61:
+        if getCurrentModelrun() == model_run:
+            break
+        producerLog.produce_message(f"Model Run: {model_run}", f"Successfully produced 61 messages from a previous run")
+        model_run = get_next_model_run(model_run)
+        urlCount = queryDMIandPushToKafka(model_run)
+
+    if urlCount == 61:
+        producerLog.produce_message(f"Model Run: {model_run}", f"Successfully produced 61 messages")
+        return
+    else: # situation where the job didn't return true we need to retry every 5 min. 
+        producerLog.produce_message(f"Model Run: {model_run}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Scheduling retry every 5 minutes")
+        clear_scheduler_jobs(scheduler)
+        interval_model_run = model_run # update variable to hold the model_run to be queried in intervalJob()
+        scheduler.add_job(intervalJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
+        return
+
+# Current model_run to be queried by intervalJob()
+interval_model_run = ''
+
+def intervalJob():
+    producerLog = KafkaProducer(topic=TOPIC_LOGGING)
+
+    current_model_run = getCurrentModelrun()
+
+    if current_model_run != interval_model_run:
+        print("current_model_run != interval_model_run - We must have skipped a model run, running cronJob to re-query old runs and catch up")
+        clear_scheduler_jobs(scheduler)
+        scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
+        cronJob()
+        return
+    
+    urlCount = queryDMIandPushToKafka(interval_model_run)
+    if urlCount == 61: # job finally returned true. reset to 3 hour intival cron job.
+        producerLog.produce_message(f"Model Run: {interval_model_run}", f"Successfully produced 61 messages in retry")
+        clear_scheduler_jobs(scheduler)
+        scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
+        return
+    else:
+        producerLog.produce_message(f"Model Run: {interval_model_run}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Retrying again in 5 minutes")
+        return
 
 def printJobSchedulerStatus():
     scheduler.print_jobs()
 
+# Initialize the scheduler
+scheduler = BlockingScheduler()
+
 scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=5), id='printstatus_job', replace_existing=True, max_instances=10)
 scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0, second=0), id='main_job', replace_existing=True, max_instances=10)
 
-latest_model_run = query_for_latest_model_run()
-if latest_model_run != getCurrentModelrun():
-    cronJob(latest_model_run)
+cronJob()
 
 scheduler.start()

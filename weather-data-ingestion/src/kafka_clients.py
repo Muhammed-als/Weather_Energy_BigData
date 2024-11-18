@@ -5,11 +5,14 @@ from confluent_kafka.serialization import StringSerializer, SerializationContext
 import json
 from pprint import pprint
 
+KAFKA_SERVER = 'kafka:9092'
+SCHEMA_REGISTRY = 'http://kafka-schema-registry:8081'
+
 def on_msg_delivery(err, msg):
     if err is not None:
-        print(f"Delivery failed for record {msg.key()}: {err}")
+        print(f"Delivery failed for record {msg.key().decode('utf-8')}: {err}")
     else:
-        print(f'Record {msg.key()} successfully produced to {msg.topic()} partition {msg.partition()} at offset {msg.offset()}')
+        print(f'Record {msg.key().decode('utf-8')} successfully produced to {msg.topic()} partition {msg.partition()} at offset {msg.offset()}')
 
 def on_consume_commit(err, partitions):
     if err:
@@ -19,15 +22,15 @@ def on_consume_commit(err, partitions):
         pprint(partitions)
 
 class KafkaConsumer:
-    def __init__(self, kafka_server, schema_registry, topic, offset, groupID=None, use_avro = True, avro_schema=None, enable_auto_commit = False):
-        self.schema_registry_client = SchemaRegistryClient({'url': schema_registry})
+    def __init__(self, topic, offset, groupID=None, use_avro = True, avro_schema=None, enable_auto_commit = False):
+        self.schema_registry_client = SchemaRegistryClient({'url': SCHEMA_REGISTRY})
         self.topic = topic
 
         if use_avro:
             if avro_schema is not None:
                 self.avro_deserializer = AvroDeserializer(
                     schema_registry_client=self.schema_registry_client,
-                    schema_str=avro_schema
+                    schema_str=json.dumps(avro_schema)
                 )
             else:
                 self.avro_deserializer = AvroDeserializer(
@@ -37,7 +40,7 @@ class KafkaConsumer:
             self.avro_deserializer = None
 
         consumer_conf = {
-            'bootstrap.servers': kafka_server,
+            'bootstrap.servers': KAFKA_SERVER,
             'group.id': 'DEFAULT_CONSUMER' if groupID is None else groupID,
             'auto.offset.reset': offset,
             'on_commit': on_consume_commit,
@@ -54,28 +57,32 @@ class KafkaConsumer:
             return None, None, None
 
         if self.avro_deserializer is not None:
-            return msg, msg.key(), self.avro_deserializer(msg.value(), SerializationContext(msg.topic(), MessageField.VALUE))
+            return (msg, 
+                    msg.key().decode('utf-8'), 
+                    self.avro_deserializer(msg.value(), SerializationContext(msg.topic(), MessageField.VALUE)))
         else:
-            return msg, msg.key(), msg.value()
+            return (msg, 
+                    msg.key().decode('utf-8'), 
+                    msg.value().decode('utf-8'))
         
     def close(self):
         self.consumer.close()
         
 
 class KafkaProducer:
-    def __init__(self, kafka_server, schema_registry, topic, avro_schema = None):
-        self.schema_registry_client = SchemaRegistryClient({'url': schema_registry})
+    def __init__(self, topic, avro_schema = None):
+        self.schema_registry_client = SchemaRegistryClient({'url': SCHEMA_REGISTRY})
 
         # Initialize AvroSerializer with the schema registry client and Avro schema if schema is provided
         if avro_schema is not None:
             self.avro_serializer = AvroSerializer(
-                self.schema_registry_client,
-                json.dumps(avro_schema)
+                schema_registry_client=self.schema_registry_client,
+                schema_str=json.dumps(avro_schema)
             )
         else:
             self.avro_serializer = None
         self.string_serializer = StringSerializer('utf-8')
-        self.producer = Producer({'bootstrap.servers': kafka_server})
+        self.producer = Producer({'bootstrap.servers': KAFKA_SERVER})
         self.topic = topic
 
     def produce_message(self, key, record, partition = None) -> bool:
