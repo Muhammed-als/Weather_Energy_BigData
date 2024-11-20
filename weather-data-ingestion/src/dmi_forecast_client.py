@@ -21,14 +21,14 @@ class DMIForecastClient:
         if data['numberReturned'] != 61:
             print("Error - Not exactly 61 returned urls ")
             print(f"numberReturned: {data['numberReturned']}")
-            if data['numberReturned'] == 0:
+            if data['numberReturned'] == 0 or 'features' not in data:
                 return {}, {}, data['numberReturned']
             #print("First data entry:")
             #pprint(data['features'][0])
             #if data['numberReturned'] > 1:
             #    print("Last entry:")
             #    pprint(data['features'][data['numberReturned']-1])
-            return {}, {}, data['numberReturned']
+            #return {}, {}, data['numberReturned']
 
         return_list = []
         keys = []

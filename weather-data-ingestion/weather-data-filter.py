@@ -72,6 +72,16 @@ if not os.path.exists(key):
   with open(filename, "wb") as file:
     file.write(response.content)
 
+PARAM_NAMES = {
+   "High cloud cover",
+   "Medium cloud cover",
+   "Low cloud cover",
+   "2 metre temperature",
+   "2 metre specific humidity",
+   "10 metre wind direction",
+   "10 metre wind speed",
+}
+
 grbs = pygrib.open(filename)
 temp0 = grbs.select(name='Temperature', level=0)[0]
 temp0values = temp0.values

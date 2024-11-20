@@ -1,8 +1,19 @@
 import re
 from datetime import datetime, timedelta
 
-def get_next_model_run(date_str):
-    dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
+def str_to_date(date_string) -> datetime:
+    return datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
+
+def get_current_model_run() -> str:
+    current_datetime = datetime.now()
+    rounded_datetime = current_datetime - timedelta(hours=(current_datetime.hour-1) % 3 +1, # When accounting for beeing one hour ahead: hours=(current_datetime.hour-1) % 3 +1
+                                                    minutes=current_datetime.minute, 
+                                                    seconds=current_datetime.second, 
+                                                    microseconds=current_datetime.microsecond)
+    return rounded_datetime.strftime('%Y-%m-%dT%H:%M:%SZ') #formattet to look like 'YYYY-MM-DDTHH:MM:SSZ'
+
+def get_next_model_run(date_str) -> str:
+    dt = str_to_date(date_str)
     now = datetime.now()
     dt += timedelta(hours=3)
     while dt + timedelta(days=2) < now:
@@ -10,7 +21,7 @@ def get_next_model_run(date_str):
         dt += timedelta(hours=3)
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-def find_latest_date_string(strings):
+def find_latest_date_string(strings) -> str:
     latest_date = None
 
     for s in strings:

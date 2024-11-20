@@ -5,7 +5,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from src.dmi_forecast_client import DMIForecastClient
 from src.kafka_clients import KafkaProducer, KafkaConsumer
-from src.utils import find_latest_date_string, get_next_model_run
+from src.utils import *
 
 TOPIC_URLS = 'FORECAST_DOWNLOAD_URLS'
 TOPIC_LOGGING = 'FORECAST_DOWNLOAD_URLS_LOG'
@@ -29,17 +29,10 @@ AVRO_SCHEMA = {
     ]
 }
 
-def getCurrentModelrun() -> str:
-    current_datetime = datetime.now()
-    rounded_datetime = current_datetime - timedelta(hours=(current_datetime.hour-1) % 3 +1, # When accounting for beeing one hour ahead: hours=(current_datetime.hour-1) % 3 +1
-                                                    minutes=current_datetime.minute, 
-                                                    seconds=current_datetime.second, 
-                                                    microseconds=current_datetime.microsecond)
-    return rounded_datetime.strftime('%Y-%m-%dT%H:%M:%SZ') #formattet to look like 'YYYY-MM-DDTHH:MM:SSZ'
 
-def queryDMIandPushToKafka(modelrun_date = None) -> int:
+def queryDMIandPushToKafka(modelrun_date = None, produce_regardless = False) -> int:
     # Get the current datetime rounded down to latest hour divisible by 3
-    modelrun_datetime = getCurrentModelrun() if modelrun_date is None else modelrun_date
+    modelrun_datetime = get_current_model_run() if modelrun_date is None else modelrun_date
     print(f"Querying modelrun with date: {modelrun_datetime}")
 
     # Create producer from class above
@@ -49,7 +42,7 @@ def queryDMIandPushToKafka(modelrun_date = None) -> int:
     # GET dmi data data to be sent
     keys, records, urlCount = dmiCli.getForecastUrls()
 
-    if not keys:
+    if urlCount == 0 or (urlCount != 61 and not produce_regardless):
         return urlCount
     
     partition = 0
@@ -59,7 +52,7 @@ def queryDMIandPushToKafka(modelrun_date = None) -> int:
         partition += 1
     return urlCount
 
-def query_latest_committet_model_run() -> bool:
+def queryLatestCommittetModelRun():
     groupID = 'Forecast_URL_Query_Group'
     offset = 'earliest'
 
@@ -83,55 +76,60 @@ def query_latest_committet_model_run() -> bool:
     latest_model_run = find_latest_date_string(keys)
     return latest_model_run
 
-def clear_scheduler_jobs(scheduler):
+def clearSchedulerJobs(scheduler):
     scheduler.remove_all_jobs()
     scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=5), id='printstatus_job', replace_existing=True, max_instances=10)
     return
 
+
+
+# Current model_run to be queried by intervalJob() and set in cronJob()
+interval_model_run = ''
+
 def cronJob():
     producerLog = KafkaProducer(topic=TOPIC_LOGGING)
 
-    model_run = query_latest_committet_model_run()
-    print(f"Latest committet model run {model_run}")
-    print(f"Current model run is       {getCurrentModelrun()}")
+    model_run = queryLatestCommittetModelRun()
+    current_model_run = get_current_model_run()
+    print(f"Latest committet model run:  {model_run}")
+    print(f"Current model run is:        {current_model_run}")
 
     # If the latest model run matches the current model run then we already have the latest available. Otherwise get the next run
-    if getCurrentModelrun() == model_run:
+    if current_model_run == model_run:
         print("current model run == latest committet model run. returning from cronJob()")
         return
     model_run = get_next_model_run(model_run)
-    print(f"Next model run found to be {model_run}. Trying to get that. . .")
-
-    # While topic is not up to date, query the remaining model runs in order to catch up
-    urlCount = queryDMIandPushToKafka(model_run)
-    while urlCount == 61:
-        if getCurrentModelrun() == model_run:
-            break
-        producerLog.produce_message(f"Model Run: {model_run}", f"Successfully produced 61 messages from a previous run")
+    print(f"Next model run to try toget: {model_run}")
+    
+     # While topic is not up to date, query the remaining model runs in order to catch up. push all collected urls regardless if there is exactly 61. If there are not 61 by now. We are not gonna get anymore from that run.
+    while str_to_date(model_run) < str_to_date(current_model_run):
+        urlCount = queryDMIandPushToKafka(model_run, produce_regardless=True)
+        if urlCount == 0:
+            producerLog.produce_message(f"Model Run: {model_run}", f"Failed to produced any URLS. Even though it was an old run")
+        else:
+            producerLog.produce_message(f"Model Run: {model_run}", f"Successfully produced {urlCount} messages from an old run")
         model_run = get_next_model_run(model_run)
-        urlCount = queryDMIandPushToKafka(model_run)
+
+    urlCount = queryDMIandPushToKafka(model_run)
 
     if urlCount == 61:
         producerLog.produce_message(f"Model Run: {model_run}", f"Successfully produced 61 messages")
         return
     else: # situation where the job didn't return true we need to retry every 5 min. 
         producerLog.produce_message(f"Model Run: {model_run}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Scheduling retry every 5 minutes")
-        clear_scheduler_jobs(scheduler)
+        clearSchedulerJobs(scheduler)
         interval_model_run = model_run # update variable to hold the model_run to be queried in intervalJob()
         scheduler.add_job(intervalJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
         return
 
-# Current model_run to be queried by intervalJob()
-interval_model_run = ''
-
 def intervalJob():
     producerLog = KafkaProducer(topic=TOPIC_LOGGING)
 
-    current_model_run = getCurrentModelrun()
+    current_model_run = get_current_model_run()
 
     if current_model_run != interval_model_run:
         print("current_model_run != interval_model_run - We must have skipped a model run, running cronJob to re-query old runs and catch up")
-        clear_scheduler_jobs(scheduler)
+        clearSchedulerJobs(scheduler)
         scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
         cronJob()
         return
@@ -139,7 +137,7 @@ def intervalJob():
     urlCount = queryDMIandPushToKafka(interval_model_run)
     if urlCount == 61: # job finally returned true. reset to 3 hour intival cron job.
         producerLog.produce_message(f"Model Run: {interval_model_run}", f"Successfully produced 61 messages in retry")
-        clear_scheduler_jobs(scheduler)
+        clearSchedulerJobs(scheduler)
         scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
         return
     else:
