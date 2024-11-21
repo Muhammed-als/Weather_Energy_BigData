@@ -4,6 +4,7 @@ import time
 from dmi_open_data import DMIOpenDataClient
 from tenacity import RetryError
 from kafka_clients import KafkaProducer
+from utils import find_closest_geolocations_for_municipalities
 api_key = '44509e99-cd08-4d5d-80f7-637beae711f1'
 KAFKA_TOPIC: str = 'DMI_METOBS'
 SCHEMA_REGISTRY = 'http://kafka-schema-registry:8081'
@@ -75,10 +76,14 @@ def fetch_data():
         produceData(observations)
 def produceData(observations):            
         producer = KafkaProducer(kafka_server=KAFKA_SERVER, schema_registry=SCHEMA_REGISTRY, topic=KAFKA_TOPIC, avro_schema=AVRO_SCHEMA)
+        coordinate = {}
         for observation in observations:
-            try:
+            coordinate[observation["properties"]["stationId"]] = observation["geometry"]["coordinates"]  
+            """ try:
                 # station_id = observation["properties"]["stationId"]
                 coordinates = observation["geometry"]["coordinates"]
+                for coordinate in coordinates:
+                    station_id = find_closest_geolocations_for_municipalities(coordinate)
                 properties = {
                 "created": observation["properties"]["created"],
                 "datetime": observation["properties"]["datetime"],
@@ -92,7 +97,6 @@ def produceData(observations):
                 "wind_speed": observation["properties"]["wind_speed"],
                 }
                 record = {
-                "stationId": station_id,
                 "coordinates": coordinates,
                 "properties": properties,
                 "values": values,
@@ -106,7 +110,8 @@ def produceData(observations):
             except KeyError as e:
                 print(f"Key error while processing observation: {e}")
             except Exception as ex:
-                print(f"Unexpected error while processing observation: {ex}")
+                print(f"Unexpected error while processing observation: {ex}") """
+                    
         
 # Schedule the function to run every 10 minutes
 schedule.every(10).minutes.do(fetch_data)

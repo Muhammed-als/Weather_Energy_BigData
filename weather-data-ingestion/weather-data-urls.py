@@ -22,4 +22,3 @@ if data['numberReturned'] != 61:
     pass
 
 urls = [stac_item['asset']['data']['href'] for stac_item in data['features']]
-pprint(urls[0])
