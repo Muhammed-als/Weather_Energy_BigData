@@ -1,0 +1,21 @@
+{
+  "name": "web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "dev": "nodemon src/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.21.1",
+    "kafkajs": "^2.2.4",
+    "nodemon": "^3.1.7",
+    "winston": "^3.17.0"
+  }
+}
