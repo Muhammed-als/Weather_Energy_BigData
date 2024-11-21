@@ -84,14 +84,14 @@ def find_closest_geolocations_for_municipalities(station_locations):
     for name, (lat1, lon1) in municipalities_coordinates.items():
         closest_distance = float('inf')
         
-        for (lat2, lon2) in station_locations:
+        for stationID, (lat2, lon2) in station_locations.items():
             distance = haversine(lat1, lon1, lat2, lon2)
             if distance < closest_distance:
                 closest_distance = distance
                 lat = lat2
                 lon = lon2
         
-        return_dict[name] = (lat, lon)
+        return_dict[stationID] = {"name": name, "lat": lat, "lon": lon}
     
     return return_dict
 
