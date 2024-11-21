@@ -1,91 +1,3 @@
-import re
-from datetime import datetime, timedelta
-
-def get_next_model_run(date_str):
-    dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
-    now = datetime.now()
-    dt += timedelta(hours=3)
-    while dt + timedelta(days=2) < now:
-        print(f"Time for DMI query refers to model run more than two days old: {dt} + {timedelta(days=2)} < {now} == {dt + timedelta(days=2) < now}. Add 3 hours and check again")
-        dt += timedelta(hours=3)
-    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-def find_latest_date_string(strings):
-    latest_date = None
-
-    for s in strings:
-        # HARMONIE_DINI_SF_2024-11-14T150000Z_2024-11-17T030000Z.grib
-        #                  ^^^^^^^^^^^^^^^^^^
-        date = s.split('_')[3]
-        
-        first_date = datetime.strptime(date, "%Y-%m-%dT%H%M%SZ")
-        
-        # Check if this is the latest second date
-        if latest_date is None or first_date > latest_date:
-            latest_date = first_date
-
-    return latest_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-"""
-# Example usage
-strings = [
-    "HARMONIE_DINI_SF_2024-11-14T150000Z_2024-11-17T030000Z.grib",
-    "HARMONIE_DINI_SF_2024-11-14T150000Z_2024-11-18T030000Z.grib",
-    "HARMONIE_DINI_SF_2024-11-16T150000Z_2024-11-18T040000Z.grib",
-    "HARMONIE_DINI_SF_2024-11-16T160000Z_2024-11-18T000000Z.grib",
-    "HARMONIE_DINI_SF_2024-11-16T140000Z_2024-11-18T040000Z.grib",
-    "HARMONIE_DINI_SF_2024-11-16T150000Z_2024-11-18T040000Z.grib",
-    "HARMONIE_DINI_SF_2024-11-14T150000Z_2024-11-18T070000Z.grib",
-    "HARMONIE_DINI_SF_2024-11-14T160000Z_2024-11-18T060000Z.grib",
-    "HARMONIE_DINI_SF_2024-11-14T180000Z_2024-11-16T030000Z.grib"
-    "HARMONIE_DINI_SF_2024-11-15T150000Z_2024-11-16T060000Z.grib"
-    "HARMONIE_DINI_SF_2024-11-14T150000Z_2024-11-16T050000Z.grib"
-]
-
-result = find_latest_date_string(strings)
-print("String with the latest first date:", result)
-"""
-
-from math import radians, sin, cos, sqrt, atan2, asin
-
-def haversine(lat1, lon1, lat2, lon2):
-    """
-    Calculate the great-circle distance between two points 
-    on the Earth using the Haversine formula.
-    """
-    R = 6371  # Radius of Earth in kilometers
-    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    print(f"First attemp:   {R*2*asin(sqrt(a))}")
-    print(f"Second attempt: {R*c}")
-    return R * c
-
-def find_closest_geolocations_for_municipalities(station_locations):
-    """
-    For each municipality, find the closest station.
-    """
-    return_dict = {}
-    
-    for name, (lat1, lon1) in municipalities_coordinates.items():
-        closest_distance = float('inf')
-        
-        for (lat2, lon2) in station_locations:
-            distance = haversine(lat1, lon1, lat2, lon2)
-            if distance < closest_distance:
-                closest_distance = distance
-                lat = lat2
-                lon = lon2
-        
-        return_dict[name] = (lat, lon)
-    
-    return return_dict
-
-#haversine(55.657, 12.353, 55.871, 12.350)
-
 municipalities_coordinates = {
     "Albertslund": (55.657, 12.353),
     "Allerød": (55.871, 12.350),
@@ -186,3 +98,15 @@ municipalities_coordinates = {
     "Vesthimmerlands": (56.764, 9.328),
     "Aalborg": (57.048, 9.919)
 }
+
+import folium
+
+# Initialize the map centered on Denmark
+denmark_map = folium.Map(location=[56.26392, 9.501785], zoom_start=7)
+
+# Add markers for each municipality
+for name, (lat, lon) in municipalities_coordinates.items():
+    folium.Marker(location=[lat, lon], popup=name).add_to(denmark_map)
+
+# Save the map to an HTML file
+denmark_map.save("denmark_map.html")
