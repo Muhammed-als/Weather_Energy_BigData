@@ -1,6 +1,29 @@
 import re
 from datetime import datetime, timedelta
 
+import logging
+import time
+# Configure logging to stdout
+logging.basicConfig(
+    level=logging.INFO,  # Set the desired logging level
+    format="%(asctime)s|%(levelname)s| %(message)s",  # Define the log format
+    handlers=[
+        logging.StreamHandler()  # StreamHandler sends logs to stdout
+    ]
+)
+logger = logging.getLogger()
+
+def log(msg, log_to_kafka_pod=True, log_with_print=False, level=logging.INFO):
+    if log_to_kafka_pod:
+        if level == logging.INFO:
+            logger.info(msg)
+        elif level == logging.WARNING:
+            logger.warning(msg)
+        elif level == logging.ERROR:
+            logger.error(msg)
+    if log_with_print:
+        print(msg)
+
 def str_to_date(date_string) -> datetime:
     return datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
 

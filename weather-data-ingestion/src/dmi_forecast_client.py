@@ -1,5 +1,6 @@
 import requests
 from pprint import pprint
+from src.utils import *
 
 class DMIForecastClient:
     _model = 'harmonie_dini_sf' # model Harmonie - Denmark, Iceland, Netherlands and Ireland - surface
@@ -14,21 +15,15 @@ class DMIForecastClient:
         r = requests.get(url)
 
         if r.status_code != 200:
-            print(f"Error - request not 200, but insted {r.status_code}")
+            log(f"Request not 200, but insted {r.status_code}", level=logging.ERROR)
             return {}, {}, 0
 
         data = r.json()
         if data['numberReturned'] != 61:
-            print("Error - Not exactly 61 returned urls ")
-            print(f"numberReturned: {data['numberReturned']}")
+            log("Not exactly 61 returned urls ", level=logging.ERROR)
+            log(f"numberReturned: {data['numberReturned']}")
             if data['numberReturned'] == 0 or 'features' not in data:
                 return {}, {}, data['numberReturned']
-            #print("First data entry:")
-            #pprint(data['features'][0])
-            #if data['numberReturned'] > 1:
-            #    print("Last entry:")
-            #    pprint(data['features'][data['numberReturned']-1])
-            #return {}, {}, data['numberReturned']
 
         return_list = []
         keys = []

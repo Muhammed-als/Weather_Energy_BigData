@@ -5,6 +5,7 @@ import os
 import requests
 
 from src.kafka_clients import KafkaConsumer, KafkaProducer
+from src.utils import log
 
 KELVIN = 273.15
 
@@ -12,6 +13,7 @@ AVRO_SCHEMA = {
     "type": "record",
     "name": "MetObsData",
     "fields": [
+    {"name": "municipality", "type": "string"},
 		{"name": "stationId", "type": "string"},
 		{"name": "coordinates", "type": {"type": "array", "items": "double"}},
 		{"name": "properties", "type": {
@@ -51,10 +53,10 @@ consumer = KafkaConsumer(FORECAST_URL_TOPIC, offset, groupId, use_avro=True, avr
 msg, key, url = consumer.consume_message()
 
 if url in None:
-    print("No messages consumed. Exiting. . .")
+    log("No messages consumed. Exiting. . .")
     exit()
 
-print(f'Message consumed: "{key}" "{url}"')
+log(f'Message consumed: "{key}" "{url}"')
 
 FORECAST_URL_LOG_TOPIC = 'FORECAST_DOWNLOAD_URLS_LOG'
 log_producer = KafkaProducer(FORECAST_URL_LOG_TOPIC)
@@ -88,7 +90,7 @@ temp0values = temp0.values
 lats, lons = temp0.latlons()
 
 for temp in grbs.select(name='Temperature'):
-    print(temp.values[20][40] - KELVIN)
+    log(temp.values[20][40] - KELVIN)
 
 """
 ds_grib = xr.open_dataset(filename, engine="cfgrib")
@@ -101,5 +103,5 @@ ds = xr.open_mfdataset(
                       engine="cfgrib")
 
 
-print(ds_grib)
+log(ds_grib)
 """

@@ -4,21 +4,22 @@ from confluent_kafka.schema_registry.avro import AvroSerializer, AvroDeserialize
 from confluent_kafka.serialization import StringSerializer, SerializationContext, MessageField
 import json
 from pprint import pprint
+from src.utils import *
 
 KAFKA_SERVER = 'kafka:9092'
 SCHEMA_REGISTRY = 'http://kafka-schema-registry:8081'
 
 def on_msg_delivery(err, msg):
     if err is not None:
-        print(f"Delivery failed for record {msg.key().decode('utf-8')}: {err}")
+        log(f"Delivery failed for record {msg.key().decode('utf-8')}: {err}")
     else:
-        print(f'Record {msg.key().decode('utf-8')} successfully produced to {msg.topic()} partition {msg.partition()} at offset {msg.offset()}')
+        log(f'Record {msg.key().decode('utf-8')} successfully produced to {msg.topic()} partition {msg.partition()} at offset {msg.offset()}')
 
 def on_consume_commit(err, partitions):
     if err:
-        print(f"Commit failed: {err}")
+        log(f"Commit failed: {err}")
     else:
-        print(f"Committed offsets:")
+        log(f"Committed offsets:")
         pprint(partitions)
 
 class KafkaConsumer:
@@ -53,7 +54,7 @@ class KafkaConsumer:
         msg = self.consumer.poll(5)
         
         if msg is None:
-            print("Error: Consumed message was None")
+            log("Consumed message was None", level=logging.ERROR)
             return None, None, None
 
         if self.avro_deserializer is not None:
@@ -107,6 +108,6 @@ class KafkaProducer:
                                         on_delivery=on_msg_delivery)
             self.producer.flush()  # Ensure all messages are sent
         except Exception as e:
-            print(f"Failed to produce message: {e}")
+            log(f"Failed to produce message: {e}")
             return False
         return True
