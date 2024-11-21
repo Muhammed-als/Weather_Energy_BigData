@@ -1,2 +1,9 @@
 dmi-open-data
-pip install schedule
+requests
+schedule
+tenacity
+kafka-python
+confluent_kafka
+fastavro
+
+

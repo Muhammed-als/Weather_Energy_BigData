@@ -3,9 +3,11 @@ import schedule
 import time
 from dmi_open_data import DMIOpenDataClient
 from tenacity import RetryError
+from kafka_clients import KafkaProducer
 api_key = '44509e99-cd08-4d5d-80f7-637beae711f1'
 KAFKA_TOPIC: str = 'DMI_METOBS'
-KAFKA_BROKER: str = 'kafka_broker:9092'
+SCHEMA_REGISTRY = 'http://kafka-schema-registry:8081'
+KAFKA_SERVER = 'kafka:9092'
 AVRO_SCHEMA = {
     "type": "record",
     "name": "MetObsData",
@@ -70,7 +72,42 @@ def fetch_data():
             print(f"HTTP error occurred: {http_err}")
         except requests.exceptions.RequestException as req_err:
             print(f"Request error occurred: {req_err}")
-
+        produceData(observations)
+def produceData(observations):            
+        producer = KafkaProducer(kafka_server=KAFKA_SERVER, schema_registry=SCHEMA_REGISTRY, topic=KAFKA_TOPIC, avro_schema=AVRO_SCHEMA)
+        for observation in observations:
+            try:
+                # station_id = observation["properties"]["stationId"]
+                coordinates = observation["geometry"]["coordinates"]
+                properties = {
+                "created": observation["properties"]["created"],
+                "datetime": observation["properties"]["datetime"],
+                "modelRun": observation["properties"]["modelRun"],
+                }
+                values = {
+                "temp_dry": observation["properties"]["temp_dry"],
+                "cloud_cover": observation["properties"]["cloud_cover"],
+                "humidity": observation["properties"]["humidity"],
+                "wind_dir": observation["properties"]["wind_dir"],
+                "wind_speed": observation["properties"]["wind_speed"],
+                }
+                record = {
+                "stationId": station_id,
+                "coordinates": coordinates,
+                "properties": properties,
+                "values": values,
+                }
+                key = station_id
+                isMessageProduced = producer.produce_message(key, record)
+                if isMessageProduced:
+                    print(f"Message for station {station_id} successfully sent.")
+                else:
+                    print(f"Failed to send message for station {station_id}.")
+            except KeyError as e:
+                print(f"Key error while processing observation: {e}")
+            except Exception as ex:
+                print(f"Unexpected error while processing observation: {ex}")
+        
 # Schedule the function to run every 10 minutes
 schedule.every(10).minutes.do(fetch_data)
 

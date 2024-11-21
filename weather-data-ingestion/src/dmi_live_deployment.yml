@@ -1,0 +1,17 @@
+apiVersion: apps/v1 
+kind: Deployment
+metadata:
+  name: dmi_live_data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+     app: dmi_live_data
+  template:
+    metadata:
+      labels:
+        app: dmi_live_data
+    spec: 
+      containers:
+      - name: dmi_live_data
+      
