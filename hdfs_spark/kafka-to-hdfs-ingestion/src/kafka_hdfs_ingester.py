@@ -3,15 +3,18 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import requests, zipfile, io
+import logging
 
-KAFKA_TOPIC: str = 'topic_name'
-KAFKA_BROKER: str = 'kafka_broker:9092'
-HDFS_PATH: str = 'hdfs://hdfs_server:port/path/'
+KAFKA_TOPIC: str = 'ENERGY_DATA'
+KAFKA_BROKER: str = 'kafka:9092'
+HDFS_PATH: str = 'hdfs://namenode:9000/'
 DEFAULT_ENCODING: str = "utf-8"
 
-def consumeMessages():
+def consumeMessages(logger):
+    logger.debug(f"Consumer af:\nTOPIC: {KAFKA_TOPIC}\nBootstrap Server:{KAFKA_BROKER}")
     consumer = KafkaConsumer(KAFKA_TOPIC, bootstrap_servers=KAFKA_BROKER)
     for msg in consumer:
+        logger.debug(f"Message: {msg} in consumer")
         yield msg.value.decode(DEFAULT_ENCODING)
 
 def get_historical_weather_data():
@@ -31,24 +34,32 @@ def get_historical_weather_data():
     z.extractall("/app/historical_data")
 
 
-def writeToHDFS(data):
+def writeToHDFS(data, logger):
     """
         Write the data in a parquet format.
         The written Paruqet file will be in hdfs://hdfs_server:port/path/output.parquet
     """
     df = pd.DataFrame(data)
     table = pa.Table.from_pandas(df)
+    logger.debug(f"Writing data:\n{data}\nto hdfs path:\n{HDFS_PATH}")
     pq.write_table(table,HDFS_PATH,"output.parquet",append=True)
 
 def main():
+    logging.basicConfig(filename="logs.log",
+                    format='%(asctime)s %(message)s',
+                    filemode='w')
+    
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
     data = []
     while True:
-        for record in consumeMessages():
+        for record in consumeMessages(logger):
             data.append(record)
-            print("record " + record + "is added to the array" )
+            logger.debug(f"Record {record} is added to the array")
             if (len(data)>100):
-                writeToHDFS(data)
-                print("data are written to hdfs" )
+                writeToHDFS(data, logger)
+                logger.debug("Data are written to hdfs")
                 data.clear()
 
 if __name__ == "__main__":

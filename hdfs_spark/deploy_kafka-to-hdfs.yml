@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: kafka-hdfs-ingester
-        image: kafka-hdfs-ingester_img
+        image: helleberg/kafka-hdfs-ingester
         env:
         - name: KAFKA_TOPIC
           value: "topic_name"

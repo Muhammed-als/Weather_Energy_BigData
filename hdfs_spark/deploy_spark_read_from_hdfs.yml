@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-read-from-hdfs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark-read-from-hdfs
+  template:
+    metadata:
+      labels:
+        app: spark-read-from-hdfs
+    spec:
+      containers:
+      - name: spark-read-from-hdfs
+        image: helleberg/spark-read-from-hdfs
+        env:
+        - name: HDFS_PATH
+          value: "hdfs://hdfs_server:port/path/output.parquet"
+

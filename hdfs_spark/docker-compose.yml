@@ -1,15 +1,17 @@
 version: "3.8"
 services:
-  kafka-to-hdfs-ingestion_service:
+  kafka-to-hdfs-ingestion:
     build:
       context: ./kafka-to-hdfs-ingestion
       dockerfile: Dockerfile
+    image: helleberg/kafka-hdfs-ingester
     container_name: kafka-to-hdfs-ingestion_container
 
-  spark_read_from_hdfs_service:
+  spark-read-from-hdfs:
     build:
-      context: ./spark_read_from_hdfs
+      context: ./spark-read-from-hdfs
       dockerfile: Dockerfile
-    container_name: spark_read_from_hdfs_service_container
+    image: helleberg/spark-read-from-hdfs
+    container_name: spark-read-from-hdfs-service_container
     depends_on:
-      - kafka-to-hdfs-ingestion_service
+      - kafka-to-hdfs-ingestion
