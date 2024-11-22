@@ -33,7 +33,7 @@ AVRO_SCHEMA = {
 def queryDMIandPushToKafka(modelrun_date = None, produce_regardless = False) -> int:
     # Get the current datetime rounded down to latest hour divisible by 3
     modelrun_datetime = get_current_model_run() if modelrun_date is None else modelrun_date
-    log(f"Querying modelrun with date: {modelrun_datetime}")
+    log(f"Querying modelrun with date:  {modelrun_datetime}")
 
     # Create producer from class above
     producer = KafkaProducer(topic=TOPIC_URLS, avro_schema=AVRO_SCHEMA)
@@ -91,15 +91,15 @@ def cronJob():
 
     model_run = queryLatestCommittetModelRun()
     current_model_run = get_current_model_run()
-    log(f"Latest committet model run:  {model_run}")
-    log(f"Current model run is:        {current_model_run}")
+    log(f"Latest committet model run:   {model_run}")
+    log(f"Current model run is:         {current_model_run}")
 
     # If the latest model run matches the current model run then we already have the latest available. Otherwise get the next run
     if current_model_run == model_run:
         log("current model run == latest committet model run. returning from cronJob()")
         return
     model_run = get_next_model_run(model_run)
-    log(f"Next model run to try toget: {model_run}")
+    log(f"Next model run to try to get: {model_run}")
     
      # While topic is not up to date, query the remaining model runs in order to catch up. push all collected urls regardless if there is exactly 61. If there are not 61 by now. We are not gonna get anymore from that run.
     while str_to_date(model_run) < str_to_date(current_model_run):
@@ -145,7 +145,10 @@ def intervalJob():
         return
 
 def printJobSchedulerStatus():
-    scheduler.print_jobs()
+    #scheduler.print_jobs()
+    log("Job Scheduler Status - Printing registered jobs:")
+    for job in scheduler.get_jobs():
+        log(f"\t{job}")
 
 # Initialize the scheduler
 scheduler = BlockingScheduler()

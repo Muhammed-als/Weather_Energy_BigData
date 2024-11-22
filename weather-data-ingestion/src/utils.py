@@ -93,10 +93,7 @@ def haversine(lat1, lon1, lat2, lon2):
     dlon = lon2 - lon1
 
     a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    print(f"First attemp:   {R*2*asin(sqrt(a))}")
-    print(f"Second attempt: {R*c}")
-    return R * c
+    return R * 2 * asin( sqrt(a) )
 
 def find_closest_geolocations_for_municipalities(station_locations):
     """

@@ -1,4 +1,5 @@
 apscheduler
 confluent_kafka
+fastavro
 dmi-open-data
-pip install schedule
+schedule
