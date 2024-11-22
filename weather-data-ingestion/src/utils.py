@@ -146,22 +146,12 @@ def haversine(lat1, lon1, lat2, lon2) -> float:
     a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
     return R * 2 * asin( sqrt(a) )
 
-
-"""
-def find_closest_geolocations_for_municipalities(station_locations):
-    return_dict = {}
-    
-    for name, (lat1, lon1, energygrid) in municipalities_coordinates.items():
-        closest_distance = float('inf')
-        
-        for stationID, (lat2, lon2) in station_locations.items():
-            distance = haversine(lat1, lon1, lat2, lon2)
-            if distance < closest_distance:
-                closest_distance = distance
-                lat = lat2
-                lon = lon2
-        
-        return_dict[stationID] = {"name": name, "lat": lat, "lon": lon, "Egrid": energygrid}
-    
-    return return_dict
-"""
+def find_closest_geolocations_to_stations_from_grib(coordinateset, latlons):
+    closest_distance = float('inf')
+    for lat, lon in latlons:
+        distance = haversine(lat, lon, coordinateset[0], coordinateset[1])
+        if distance < closest_distance:
+            closest_distance = distance
+            closest_lat = lat
+            closest_lon = lon
+    return lat, lon
