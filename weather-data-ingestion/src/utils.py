@@ -78,7 +78,7 @@ def str_to_date(date_string) -> datetime:
 
 def get_current_model_run() -> str:
     current_datetime = datetime.now()
-    rounded_datetime = current_datetime - timedelta(hours=(current_datetime.hour-1) % 3 +1, # When accounting for beeing one hour ahead: hours=(current_datetime.hour-1) % 3 +1
+    rounded_datetime = current_datetime - timedelta(hours=(current_datetime.hour) % 3, # When accounting for beeing one hour ahead: hours=(current_datetime.hour-1) % 3 +1
                                                     minutes=current_datetime.minute, 
                                                     seconds=current_datetime.second, 
                                                     microseconds=current_datetime.microsecond)

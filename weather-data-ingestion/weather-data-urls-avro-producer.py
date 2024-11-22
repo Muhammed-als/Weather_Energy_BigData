@@ -76,9 +76,9 @@ def queryLatestCommittetModelRun():
     latest_model_run = find_latest_date_string(keys)
     return latest_model_run
 
-def clearSchedulerJobs(scheduler):
+def clearSchedulerJobs(scheduler, status_interval_min = 30):
     scheduler.remove_all_jobs()
-    scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=5), id='printstatus_job', replace_existing=True, max_instances=10)
+    scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=status_interval_min), id='printstatus_job', replace_existing=True, max_instances=10)
     return
 
 
@@ -117,7 +117,7 @@ def cronJob():
         return
     else: # situation where the job didn't return true we need to retry every 5 min. 
         producerLog.produce_message(f"Model Run: {model_run}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Scheduling retry every 5 minutes")
-        clearSchedulerJobs(scheduler)
+        clearSchedulerJobs(scheduler, status_interval_min=5)
         interval_model_run = model_run # update variable to hold the model_run to be queried in intervalJob()
         scheduler.add_job(intervalJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
         return
@@ -153,7 +153,7 @@ def printJobSchedulerStatus():
 # Initialize the scheduler
 scheduler = BlockingScheduler()
 
-scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=5), id='printstatus_job', replace_existing=True, max_instances=10)
+scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=30), id='printstatus_job', replace_existing=True, max_instances=10)
 scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0, second=0), id='main_job', replace_existing=True, max_instances=10)
 
 cronJob()
