@@ -14,23 +14,6 @@ def consumeMessages():
     for msg in consumer:
         yield msg.value.decode(DEFAULT_ENCODING)
 
-def get_historical_weather_data():
-    api_key = '50b0870c-6f45-4dab-8269-43890d141299'
-    base_url = 'https://dmigw.govcloud.dk/v2/metObs/bulk/'
-
-    """
-        data_type:
-        Specifices which historical data to pull.
-        Can be all.zip, 2022/2022.zip or 2011/2011.zip etc.
-        Refferance: https://opendatadocs.dmi.govcloud.dk/en/Download
-    """
-    data_type = '2022/2022.zip'
-
-    r = requests.get(f'{base_url}{data_type}?api-key={api_key}', stream=True)
-    z = zipfile.ZipFile(io.BytesIO(r.content))
-    z.extractall("/app/historical_data")
-
-
 def writeToHDFS(data):
     """
         Write the data in a parquet format.
