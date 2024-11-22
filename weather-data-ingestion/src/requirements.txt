@@ -1,0 +1,11 @@
+apscheduler
+confluent_kafka
+dmi-open-data
+requests
+schedule
+tenacity
+kafka-python
+confluent_kafka
+fastavro
+
+

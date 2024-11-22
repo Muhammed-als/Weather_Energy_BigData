@@ -5,6 +5,7 @@ from dmi_open_data import DMIOpenDataClient
 from tenacity import RetryError
 from kafka_clients import KafkaProducer
 from utils import find_closest_geolocations_for_municipalities
+import pprint
 api_key = '44509e99-cd08-4d5d-80f7-637beae711f1'
 KAFKA_TOPIC: str = 'DMI_METOBS'
 SCHEMA_REGISTRY = 'http://kafka-schema-registry:8081'
@@ -55,7 +56,9 @@ def fetch_data():
     parameter_ids = [
         field["name"] for field in AVRO_SCHEMA["fields"][3]["type"]["fields"]
     ]
+    print(parameter_ids)
     # Append each parameter as a separate `parameterId`
+    all_observations = []
     for param in parameter_ids:
         url = (
         "https://dmigw.govcloud.dk/v2/metObs/collections/observation/items"
@@ -67,56 +70,69 @@ def fetch_data():
             # Make the GET request
             response = requests.get(url)
             response.raise_for_status()
-            observations = response.json()
-            print("Live observations for all parameters:", observations)
+            data = response.json()
+            all_observations.extend(data["features"])
+            print("Live observations for all parameters:", all_observations)
         except requests.exceptions.HTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")
         except requests.exceptions.RequestException as req_err:
             print(f"Request error occurred: {req_err}")
-        produceData(observations)
+    print(f"Total observations collected: {len(all_observations)}")
+    produceData(all_observations)
 def produceData(observations):            
-        producer = KafkaProducer(kafka_server=KAFKA_SERVER, schema_registry=SCHEMA_REGISTRY, topic=KAFKA_TOPIC, avro_schema=AVRO_SCHEMA)
+        #producer = KafkaProducer(kafka_server=KAFKA_SERVER, schema_registry=SCHEMA_REGISTRY, topic=KAFKA_TOPIC, avro_schema=AVRO_SCHEMA)
         coordinate = {}
+        all_records = []
         for observation in observations:
-            coordinate[observation["properties"]["stationId"]] = observation["geometry"]["coordinates"]  
-            """ try:
-                # station_id = observation["properties"]["stationId"]
-                coordinates = observation["geometry"]["coordinates"]
-                for coordinate in coordinates:
-                    station_id = find_closest_geolocations_for_municipalities(coordinate)
-                properties = {
-                "created": observation["properties"]["created"],
-                "datetime": observation["properties"]["datetime"],
-                "modelRun": observation["properties"]["modelRun"],
-                }
-                values = {
-                "temp_dry": observation["properties"]["temp_dry"],
-                "cloud_cover": observation["properties"]["cloud_cover"],
-                "humidity": observation["properties"]["humidity"],
-                "wind_dir": observation["properties"]["wind_dir"],
-                "wind_speed": observation["properties"]["wind_speed"],
-                }
-                record = {
-                "coordinates": coordinates,
+            station_id = observation["properties"].get("stationId")
+            coordinates = observation["geometry"].get("coordinates")
+            coordinate[station_id] = coordinates
+            properties = {
+                "created": observation["properties"].get("created"),
+                "datetime": observation["properties"].get("timeStamp", None),  
+                "modelRun": observation["properties"].get("modelRun", None),  
+            }
+            values = {
+                "temp_dry": observation["properties"].get("parameterId") if observation["properties"].get("parameterId") == "temp_dry" else None,
+                "cloud_cover": observation["properties"].get("parameterId") if observation["properties"].get("parameterId") == "cloud_cover" else None,
+                "humidity": observation["properties"].get("parameterId") if observation["properties"].get("parameterId") == "humidity" else None,
+                "wind_dir": observation["properties"].get("parameterId") if observation["properties"].get("parameterId") == "wind_dir" else None,
+                "wind_speed": observation["properties"].get("parameterId") if observation["properties"].get("parameterId") == "wind_speed" else None,
+            }
+            # Construct the record
+            record = {
+                "stationId": station_id,
                 "properties": properties,
                 "values": values,
-                }
-                key = station_id
-                isMessageProduced = producer.produce_message(key, record)
+            }
+            all_records.append(record)
+        closest_locations = find_closest_geolocations_for_municipalities(coordinate)
+        print("Closest Locations:", closest_locations)
+        for record in all_records:
+            station_id = record["stationId"]
+            if station_id in closest_locations:
+                coordinates = [
+                closest_locations[station_id]['name'],
+                closest_locations[station_id]['lat'],
+                closest_locations[station_id]['lon'],
+                closest_locations[station_id]['Egrid']
+                ]
+                record["coordinates"] = coordinates
+                """ isMessageProduced = producer.produce_message(station_id, record)
                 if isMessageProduced:
                     print(f"Message for station {station_id} successfully sent.")
                 else:
-                    print(f"Failed to send message for station {station_id}.")
-            except KeyError as e:
-                print(f"Key error while processing observation: {e}")
-            except Exception as ex:
-                print(f"Unexpected error while processing observation: {ex}") """
-                    
-        
+                    print(f"Failed to send message for station {station_id}.") """
+            else:
+                print(f"Station {station_id} not found in closest locations.")
+        print("All records:", all_records)        
 # Schedule the function to run every 10 minutes
-schedule.every(10).minutes.do(fetch_data)
+#schedule.every(1).minutes.do(fetch_data)
 
 # Run the scheduler in a loop
-while True:
+fetch_data()
+""" while True:
     schedule.run_pending()
-    time.sleep(1)
+    time.sleep(1) """
+
+
