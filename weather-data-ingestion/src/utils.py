@@ -154,4 +154,4 @@ def find_closest_geolocations_to_stations_from_grib(coordinateset, latlons):
             closest_distance = distance
             closest_lat = lat
             closest_lon = lon
-    return lat, lon
+    return closest_lat, closest_lon

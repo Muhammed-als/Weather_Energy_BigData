@@ -6,6 +6,7 @@ import requests
 
 from src.kafka_clients import KafkaConsumer, KafkaProducer
 from src.utils import *
+import numpy as np
 
 KELVIN = 273.15
 
@@ -86,7 +87,8 @@ PARAM_NAMES = {
 }
 
 grbs = pygrib.open(filename)
-latlons = grbs.latlons()
+_, lats, lons = grbs[1].data(lon1=7, lon2=16, lat1=54, lat2=58) # Reenforcing bbox of denmark since DMI returns way bigger bbox
+latlons = np.stack((lats.flatten(), lons.flatten()), axis=-1)
 
 # Get different parameter layers of gribfile
 grib_param_list = {}
