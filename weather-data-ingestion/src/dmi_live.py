@@ -21,8 +21,7 @@ AVRO_SCHEMA = {
             "name": "Properties",
             "fields": [
                 {"name": "created", "type": "string"},
-                {"name": "datetime", "type": "string"},
-                {"name": "modelRun", "type": "string"}
+                {"name": "observed", "type": "string"},
             ]
         }},
         {"name": "values", "type": {
