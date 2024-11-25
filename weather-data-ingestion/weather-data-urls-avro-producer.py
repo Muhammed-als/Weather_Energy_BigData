@@ -33,7 +33,7 @@ AVRO_SCHEMA = {
 def queryDMIandPushToKafka(modelrun_date = None, produce_regardless = False) -> int:
     # Get the current datetime rounded down to latest hour divisible by 3
     modelrun_datetime = get_current_model_run() if modelrun_date is None else modelrun_date
-    print(f"Querying modelrun with date: {modelrun_datetime}")
+    log(f"Querying modelrun with date:  {modelrun_datetime}")
 
     # Create producer from class above
     producer = KafkaProducer(topic=TOPIC_URLS, avro_schema=AVRO_SCHEMA)
@@ -76,9 +76,9 @@ def queryLatestCommittetModelRun():
     latest_model_run = find_latest_date_string(keys)
     return latest_model_run
 
-def clearSchedulerJobs(scheduler):
+def clearSchedulerJobs(scheduler, status_interval_min = 30):
     scheduler.remove_all_jobs()
-    scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=5), id='printstatus_job', replace_existing=True, max_instances=10)
+    scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=status_interval_min), id='printstatus_job', replace_existing=True, max_instances=10)
     return
 
 
@@ -91,15 +91,15 @@ def cronJob():
 
     model_run = queryLatestCommittetModelRun()
     current_model_run = get_current_model_run()
-    print(f"Latest committet model run:  {model_run}")
-    print(f"Current model run is:        {current_model_run}")
+    log(f"Latest committet model run:   {model_run}")
+    log(f"Current model run is:         {current_model_run}")
 
     # If the latest model run matches the current model run then we already have the latest available. Otherwise get the next run
     if current_model_run == model_run:
-        print("current model run == latest committet model run. returning from cronJob()")
+        log("current model run == latest committet model run. returning from cronJob()")
         return
     model_run = get_next_model_run(model_run)
-    print(f"Next model run to try toget: {model_run}")
+    log(f"Next model run to try to get: {model_run}")
     
      # While topic is not up to date, query the remaining model runs in order to catch up. push all collected urls regardless if there is exactly 61. If there are not 61 by now. We are not gonna get anymore from that run.
     while str_to_date(model_run) < str_to_date(current_model_run):
@@ -117,7 +117,7 @@ def cronJob():
         return
     else: # situation where the job didn't return true we need to retry every 5 min. 
         producerLog.produce_message(f"Model Run: {model_run}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Scheduling retry every 5 minutes")
-        clearSchedulerJobs(scheduler)
+        clearSchedulerJobs(scheduler, status_interval_min=5)
         interval_model_run = model_run # update variable to hold the model_run to be queried in intervalJob()
         scheduler.add_job(intervalJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
         return
@@ -128,7 +128,7 @@ def intervalJob():
     current_model_run = get_current_model_run()
 
     if current_model_run != interval_model_run:
-        print("current_model_run != interval_model_run - We must have skipped a model run, running cronJob to re-query old runs and catch up")
+        log("current_model_run != interval_model_run - We must have skipped a model run, running cronJob to re-query old runs and catch up")
         clearSchedulerJobs(scheduler)
         scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
         cronJob()
@@ -145,12 +145,15 @@ def intervalJob():
         return
 
 def printJobSchedulerStatus():
-    scheduler.print_jobs()
+    #scheduler.print_jobs()
+    log("Job Scheduler Status - Printing registered jobs:")
+    for job in scheduler.get_jobs():
+        log(f"\t{job}")
 
 # Initialize the scheduler
 scheduler = BlockingScheduler()
 
-scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=5), id='printstatus_job', replace_existing=True, max_instances=10)
+scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=30), id='printstatus_job', replace_existing=True, max_instances=10)
 scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0, second=0), id='main_job', replace_existing=True, max_instances=10)
 
 cronJob()

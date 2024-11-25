@@ -1,11 +1,11 @@
 apscheduler
 confluent_kafka
+fastavro
 dmi-open-data
+schedule
 requests
 schedule
 tenacity
 kafka-python
 confluent_kafka
 fastavro
-
-
