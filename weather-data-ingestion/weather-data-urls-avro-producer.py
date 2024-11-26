@@ -81,7 +81,11 @@ def clearSchedulerJobs(scheduler, status_interval_min = 30):
     scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=status_interval_min), id='printstatus_job', replace_existing=True, max_instances=10)
     return
 
+def scheduleCronJob(scheduler):
+    scheduler.add_job(cronJob, CronTrigger(hour='1-23/3', minute=0, second=0), id='main_job', replace_existing=True, max_instances=10) # Old timer value */3, now fires every 3rd hour in the interval between 1-23 so: 1, 4, 7, 10, 13, 16, 19, 22
 
+def scheduleIntervalJob(scheduler):
+    scheduler.add_job(intervalJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
 
 # Current model_run to be queried by intervalJob() and set in cronJob()
 interval_model_run = ''
@@ -119,7 +123,7 @@ def cronJob():
         producerLog.produce_message(f"Model Run: {model_run}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Scheduling retry every 5 minutes")
         clearSchedulerJobs(scheduler, status_interval_min=5)
         interval_model_run = model_run # update variable to hold the model_run to be queried in intervalJob()
-        scheduler.add_job(intervalJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
+        scheduleIntervalJob(scheduler)
         return
 
 def intervalJob():
@@ -130,7 +134,7 @@ def intervalJob():
     if current_model_run != interval_model_run:
         log("current_model_run != interval_model_run - We must have skipped a model run, running cronJob to re-query old runs and catch up")
         clearSchedulerJobs(scheduler)
-        scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
+        scheduleCronJob(scheduler)
         cronJob()
         return
     
@@ -138,8 +142,7 @@ def intervalJob():
     if urlCount == 61: # job finally returned true. reset to 3 hour intival cron job.
         producerLog.produce_message(f"Model Run: {interval_model_run}", f"Successfully produced 61 messages in retry")
         clearSchedulerJobs(scheduler)
-        scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
-        return
+        scheduleCronJob(scheduler)
     else:
         producerLog.produce_message(f"Model Run: {interval_model_run}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Retrying again in 5 minutes")
         return
@@ -153,8 +156,7 @@ def printJobSchedulerStatus():
 # Initialize the scheduler
 scheduler = BlockingScheduler()
 
-scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=30), id='printstatus_job', replace_existing=True, max_instances=10)
-scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0, second=0), id='main_job', replace_existing=True, max_instances=10)
+scheduleCronJob(scheduler)
 
 cronJob()
 

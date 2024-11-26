@@ -66,6 +66,9 @@ class KafkaConsumer:
                     msg.key().decode('utf-8'), 
                     msg.value().decode('utf-8'))
         
+    def commit(self, msg, asynchronous=False) -> bool:
+        return self.consumer.commit(message=msg, asynchronous=asynchronous)
+
     def close(self):
         self.consumer.close()
         
@@ -111,3 +114,6 @@ class KafkaProducer:
             log(f"Failed to produce message: {e}")
             return False
         return True
+    
+    def flush(self, timeout=5):
+        self.producer.flush(timeout=timeout)
