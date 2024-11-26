@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-live-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-live-producer
+  template:
+    metadata:
+      labels:
+        app: weather-live-producer
+    spec:
+      containers:
+      - name: weather-live-producer
+        image: weather-live-producer-img
+        env:
+        - name: KAFKA_TOPIC_LIVE_URLS
+          value: "KAFKA_TOPIC_LIVE_URLS"
+        - name: KAFKA_TOPIC_LIVE_URLS_LOG
+          value: "KAFKA_TOPIC_LIVE_URLS_LOG"
+        - name: KAFKA_BROKER
+          value: "kafka:9092"
+        - name: KAFKA_SCHEMA_REGISTRY
+          value: "http://kafka-schema-registry:8081"
