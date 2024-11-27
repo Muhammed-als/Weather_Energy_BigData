@@ -7,10 +7,10 @@ spec:
     app: webapp
   type: LoadBalancer
   ports:
-  - protocol: TCP
-    port: 5000
-    targetPort: 1337
-    nodePort: 31110
+    - protocol: TCP
+      port: 5000
+      targetPort: 1337
+      nodePort: 31110
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -29,7 +29,8 @@ spec:
         app: webapp
     spec:
       containers:
-      - name: nodeserver
-        image: magnusquist/webapp:latest
-        ports:
-        - containerPort: 1337
+        - name: nodeserver
+          image: magnusquist/webapp:latest
+          ports:
+            - containerPort: 1337
+          imagePullPolicy: Always

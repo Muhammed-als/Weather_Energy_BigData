@@ -1,34 +1,31 @@
 const express = require('express');
-const cors = require('cors');
-const config = require('./config/config');
 const path = require('path');
-const router = express.Router();
+const routes = require('./routes');
+const { initKafkaConsumer } = require('./services/kafkaService');
 
 const app = express();
+const PORT = process.env.PORT || 1337;
 
-app.use(express.static(__dirname + '/public'));
+// Middleware for serving static files
+app.use(express.static(path.join(__dirname, '/public')));
 
-// Templating
-app.set('view engine', 'ejs');
-app.set("views", path.join(__dirname, "views"));
-
-// Middleware
-app.use(cors());
+// Middleware to parse JSON
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-// Routes
-router.use((req, res, next) => {
-    next();
-});
+// Set view engine
+app.set('views', path.join(__dirname, '/views'));
+app.set('view engine', 'ejs');
 
-router.get('/', (req, res, next) => {
-    res.render('home');
-});
+// Use routes
+app.use('/', routes);
 
-app.use('/', router);
-
+// Start Kafka consumer
+//initKafkaConsumer().catch((err) => {
+//  console.error('Failed to start Kafka consumer:', err);
+//});
 
 // Start the server
-app.listen(config.port, () => {
-  console.log(`Server is running on port ${config.port}`);
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
 });

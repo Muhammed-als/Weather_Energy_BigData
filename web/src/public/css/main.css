@@ -1,3 +1,78 @@
-html, body {
+html,
+body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+.outfit-400 {
+    font-family: "Outfit", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+}
+
+body {
+    overflow: hidden;
+    background-color: #FFFFFF;
+}
+
+header {
+    position: relative;
+    /* Ensure header content is above the grid */
+    z-index: 1;
+    /* Ensure it's above the background */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.wrapper {
+    margin: 80px 0;
+    max-width: 640px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.title {
+    margin-bottom: 14px;
+    font-weight: 500;
+    color: #1c1c1f;
+
+    >span {
+        background: linear-gradient(to right, #5D79FF, #C552A6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+}
+
+.subtitle {
+    color: #5e6069;
+    font-size: 16px;
+}
+
+.btn {
+    margin-top: 48px;
+    border-radius: 50px;
+    background-color: #1c1c1f;
+    color: #FFFFFF;
+    border: none;
+    padding: 12px 28px;
+    cursor: pointer;
+    transition: .2s ease-in-out;
+}
+
+.btn:hover {
+    background-color: #000000;
+}
+
+.content {
+    width: 1024px;
+    max-height: 340px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 auto;
 }
