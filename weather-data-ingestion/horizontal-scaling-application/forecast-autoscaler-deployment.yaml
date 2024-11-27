@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-forecast-url-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-forecast-url-producer
+  template:
+    metadata:
+      labels:
+        app: weather-forecast-url-producer
+    spec:
+      containers:
+      - name: weather-forecast-url-producer
+        image: madswb/forecast-autoscaler-img
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+        env:
+        - name: KAFKA_TOPIC_DOWNLOAD_URLS
+          value: "FORECAST_DOWNLOAD_URLS"
+        - name: KAFKA_TOPIC_DOWNLOAD_URLS_LOG
+          value: "FORECAST_DOWNLOAD_URLS_LOG"
+        - name: KAFKA_BROKER
+          value: "kafka:9092"
+        - name: KAFKA_SCHEMA_REGISTRY
+          value: "http://kafka-schema-registry:8081"
