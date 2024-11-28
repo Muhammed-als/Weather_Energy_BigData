@@ -9,6 +9,7 @@ const kafka = new Kafka({
     requestTimeout: 25000,
 });
 
+const admin = kafka.admin();
 const consumer = kafka.consumer({ groupId: 'webapp-consumer-group' });
 
 const LZ4Codec = {
@@ -22,4 +23,4 @@ const LZ4Codec = {
 
 CompressionCodecs[CompressionTypes.LZ4] = () => LZ4Codec;
 
-module.exports = { kafka, consumer };
+module.exports = { kafka, consumer, admin };

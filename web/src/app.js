@@ -21,9 +21,9 @@ app.set('view engine', 'ejs');
 app.use('/', routes);
 
 // Start Kafka consumer
-//initKafkaConsumer().catch((err) => {
-//  console.error('Failed to start Kafka consumer:', err);
-//});
+initKafkaConsumer().catch((err) => {
+  console.error('Failed to start Kafka consumer:', err);
+});
 
 // Start the server
 app.listen(PORT, () => {

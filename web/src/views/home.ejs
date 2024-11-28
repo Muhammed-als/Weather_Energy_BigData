@@ -11,6 +11,22 @@
     <link href="/css/reset.css" rel="stylesheet" type="text/css">
     <link href="/css/main.css" rel="stylesheet" type="text/css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+    </style>
 </head>
 
 <body class="outfit-400">
@@ -25,10 +41,31 @@
     </header>
 
     <div class="content">
-
+        <table>
+            <thead>
+                <tr>
+                    <th>HourDK</th>
+                    <th>HourUTC</th>
+                    <th>PriceArea</th>
+                    <th>SpotPriceDKK</th>
+                    <th>SpotPriceEUR</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% messages.forEach(message => { %>
+                    <tr>
+                        <td><%= message.HourDK %></td>
+                        <td><%= message.HourUTC %></td>
+                        <td><%= message.PriceArea %></td>
+                        <td><%= message.SpotPriceDKK.toFixed(2) %></td>
+                        <td><%= message.SpotPriceEUR.toFixed(2) %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
     </div>
 
-    <script>
+    <!--<script>
         document.addEventListener('DOMContentLoaded', () => {
             const ctx = document.createElement('canvas');
             document.querySelector('.content').appendChild(ctx);
@@ -88,9 +125,7 @@
                 options: options,
             });
         });
-    </script>
-
-    <%= messages %>
+    </script>-->
 </body>
 
 </html>

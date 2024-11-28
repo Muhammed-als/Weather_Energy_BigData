@@ -1,5 +1,5 @@
 const avro = require('avro-js');
-const { consumer } = require('../config/kafka');
+const { consumer, admin } = require('../config/kafka');
 
 // Define the Avro schema
 const valueSchema = avro.parse({
@@ -18,10 +18,12 @@ let messages = [];
 
 const initKafkaConsumer = async () => {
     try {
+        await admin.connect();
         await consumer.connect();
-        await consumer.subscribe({ topic: 'ENERGY_DATA_PARQUET', fromBeginning: true });
+        await consumer.subscribe({ topic: 'ELECTRICITY_PRICE', fromBeginning: false });
 
-        console.log('Kafka consumer connected and subscribed to topic: ENERGY_DATA_PARQUET');
+        console.log('Kafka consumer connected and subscribed to topic: ELECTRICITY_PRICE');
+
         await consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
                 try {
@@ -29,7 +31,6 @@ const initKafkaConsumer = async () => {
 
                     // If the message is Avro with schema registry, strip the 5-byte schema ID prefix
                     if (rawValue[0] === 0) {
-                        // Extract payload by removing the first 5 bytes (schema ID)
                         rawValue = rawValue.subarray(5);
                     }
 
@@ -57,14 +58,22 @@ const initKafkaConsumer = async () => {
 
                     // Store the successfully decoded message
                     messages.push(decodedMessage);
-                    if (messages.length > 20) {
-                        messages.shift(); // Keep only the last 20 messages
+                    if (messages.length > 100) {
+                        messages.shift(); // Keep only the last 100 messages
                     }
                 } catch (error) {
                     console.error('Unexpected error in Kafka consumer:', error);
                 }
             },
         });
+
+        // Adjust offsets and seek after the consumer starts running
+        const offsets = await admin.fetchOffsets({ groupId: 'webapp-consumer-group', topic: 'ELECTRICITY_PRICE' });
+        offsets.forEach(({ partition, offset }) => {
+            const seekOffset = Math.max(0, parseInt(offset, 10) - 100).toString(); // Adjust for the last 100 messages
+            consumer.seek({ topic: 'ELECTRICITY_PRICE', partition: 0, offset: seekOffset });
+        });
+
     } catch (error) {
         console.error('Error initializing Kafka consumer', error);
     }
