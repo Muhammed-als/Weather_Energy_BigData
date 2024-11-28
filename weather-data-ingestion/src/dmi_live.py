@@ -1,3 +1,5 @@
+import logging
+from pprint import pprint
 import requests
 import schedule
 import time
@@ -5,10 +7,9 @@ from dmi_open_data import DMIOpenDataClient
 from tenacity import RetryError
 from kafka_clients import KafkaProducer
 from utils import weather_stations
+from utils import log
 api_key = '44509e99-cd08-4d5d-80f7-637beae711f1'
 KAFKA_TOPIC: str = 'DMI_METOBS'
-SCHEMA_REGISTRY = 'http://kafka-schema-registry:8081'
-KAFKA_SERVER = 'kafka:9092'
 AVRO_SCHEMA = {
     "type": "record",
     "name": "MetObsData",
@@ -58,7 +59,6 @@ def fetch_data():
     all_observations = []
     for stationId in stationIds:
         for param in parameter_ids:
-            print(param)
             url = (
             "https://dmigw.govcloud.dk/v2/metObs/collections/observation/items"
             "?period=latest"
@@ -72,54 +72,51 @@ def fetch_data():
                 response.raise_for_status()
                 data = response.json()
                 all_observations.extend(data["features"])
-                print("Live observations for all parameters:", all_observations)
             except requests.exceptions.HTTPError as http_err:
-                print(f"HTTP error occurred: {http_err}")
+                log(f"HTTP error occurred: {http_err}")
             except requests.exceptions.RequestException as req_err:
-                print(f"Request error occurred: {req_err}")
-    print(f"Total observations collected: {len(all_observations)}")
-    produceData(all_observations, parameter_ids)
-def produceData(observations, parameter_ids):            
-        producer = KafkaProducer(kafka_server=KAFKA_SERVER, schema_registry=SCHEMA_REGISTRY, topic=KAFKA_TOPIC, avro_schema=AVRO_SCHEMA)
-        coordinate = {}
+                log(f"Request error occurred: {req_err}")
+    log(f"Total observations collected: {len(all_observations)}")
+    produceData(all_observations)
+def produceData(observations):            
+        producer = KafkaProducer(topic=KAFKA_TOPIC, avro_schema=AVRO_SCHEMA)
         all_records = []
+        print(len(observations))
         for observation in observations:
             station_id = observation["properties"].get("stationId")
-            coordinates = observation["geometry"].get("coordinates")
-            coordinate[station_id] = coordinates
             properties = {
                 "created": observation["properties"].get("created"),
-                "datetime": observation["properties"].get("observed"),  
+                "observed": observation["properties"].get("observed"),  
             }
-            if(observation["properties"].get("parameterId") in parameter_ids):
-                values = {
-                    observation["properties"].get("parameterId"): observation["properties"].get("value")
-            }
-            # Construct the record
-            record = {
-                "stationId": station_id,
-                "properties": properties,
-                "values": values,
-            }
-            all_records.append(record)
-        for record in all_records:
-            station_id = record["stationId"]
-            if station_id in weather_stations:
-                record["municipality"] = weather_stations[station_id]['name']
-                record["energyGrid"] = weather_stations[station_id]['Egrid']
-                coordinates = [               
-                weather_stations[station_id]['coordinates'][0],
-                weather_stations[station_id]['coordinates'][1],
-                ]
-                record["coordinates"] = coordinates
+            parameter_id = observation["properties"].get("parameterId")
+            value = observation["properties"].get("value")
+            values = {parameter_id: value}
+            for record in all_records:
+                if record['stationId'] == station_id:
+                    # Update the values in the existing record
+                    record['values'].update(values)
+                    break
             else:
-                print(f"Station {station_id} not found in closest locations.")
-        print("All records:", all_records) 
-        """ isMessageProduced = producer.produce_message(key, record)
-        if isMessageProduced:
-            print(f"Message for station {station_id} successfully sent.")
-        else:
-            print(f"Failed to send message for station {station_id}.") """
+                # Create a new record if `stationId` is not in `all_records`
+                record = {
+                    "stationId": station_id,
+                    "properties": properties,
+                    "municipality" : weather_stations[station_id]['name'],
+                    "energyGrid" : weather_stations[station_id]['Egrid'],
+                    "coordinates": {
+                        weather_stations[station_id]['coordinates'][0],
+                        weather_stations[station_id]['coordinates'][1]
+                    },
+                    "values": values,
+                }
+                all_records.append(record)
+            produce_key = f'{station_id}_{record['properties'].get("observed")}'
+            isMessageProduced = producer.produce_message(produce_key, record)
+            if isMessageProduced:
+                log(f"Message for station {station_id} successfully sent.")
+            else:
+                log(f"Failed to send message for station {station_id}.")
+        log(all_records)
 # Schedule the function to run every 10 minutes
 schedule.every(10).minutes.do(fetch_data)
 
