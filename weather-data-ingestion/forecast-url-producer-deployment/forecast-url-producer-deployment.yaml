@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: weather-forecast-url-producer
-        image: madswb/mhartihub
+        image: madswb/weather-forecast-url-producer:latest
         env:
         - name: KAFKA_TOPIC_DOWNLOAD_URLS
           value: "FORECAST_DOWNLOAD_URLS"

@@ -222,6 +222,11 @@ def log(msg, log_to_kafka_pod=True, log_with_print=False, level=logging.INFO):
 def str_to_date(date_string) -> datetime:
     return datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
 
+def get_earliest_possible_model_run(currrent_model_run):
+    current = str_to_date(currrent_model_run)
+    oldest_possible_date = current - timedelta(days=2)
+    return oldest_possible_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+
 def get_current_model_run() -> str:
     current_datetime = datetime.now()
     rounded_datetime = current_datetime - timedelta(hours=(current_datetime.hour) % 3, # When accounting for beeing one hour ahead: hours=(current_datetime.hour-1) % 3 +1
