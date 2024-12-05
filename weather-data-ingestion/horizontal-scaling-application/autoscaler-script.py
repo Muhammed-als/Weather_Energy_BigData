@@ -2,13 +2,14 @@ from kubernetes import client, config
 import time
 from src.calculate_topic_lag import calculate_consumer_group_lag
 from src.utils import log, logging
-from apscheduler.schedulers.blocking import BlockingScheduler
-from apscheduler.triggers.interval import IntervalTrigger
-from pprint import pprint
+from src.kafka_clients import KafkaProducer
 
 # Load the Kubernetes configuration
 CONFIG_PATH = 'weather-data-ingestion/atoscaler-application/group-07-kubeconfig'
 config.load_kube_config(config_file=CONFIG_PATH)
+
+DMI_FORECAST_DATA_LOG_TOPIC = 'DMI_FORECAST_DATA_LOG'
+log_producer = KafkaProducer(DMI_FORECAST_DATA_LOG_TOPIC)
 
 # API clients
 apps_v1 = client.AppsV1Api()
@@ -44,10 +45,9 @@ def scale_deployment(replicas):
 
 testbool = True
 
-def checkMetrics(isStarted = False):
+def checkMetrics():
     global testbool
     metric_value, metric_count, metric_data = get_custom_metric()
-    log(f"Current Metric Value: {metric_value}")
 
     # Read current number of replicas
     if KUBERNETES_OBJECT_TYPE == 'statefulset':
@@ -55,37 +55,24 @@ def checkMetrics(isStarted = False):
     elif KUBERNETES_OBJECT_TYPE == 'deployment':
         deployment = apps_v1.read_namespaced_deployment(DEPLOYMENT_NAME, NAMESPACE)
     current_replicas = deployment.spec.replicas
-    log(f"Deployment {DEPLOYMENT_NAME} has {current_replicas} replicas.")
+    
     # Scaling logic
-    if metric_value >= METRIC_THRESHOLD and current_replicas < MAX_REPLICAS and not isStarted or testbool:
-        testbool = False
-        log("Initializing crunching of data. . .")
-        scale_deployment(MAX_REPLICAS)
+    if current_replicas == 1 and metric_count > 1:
+        log(f"Initializing crunching of data with {metric_count} replicas")
+        log_producer.produce_message("AUTOSCALER", f"Initializing crunching of data with {metric_count} replicas")
+        scale_deployment(metric_count)
         return True
-    elif metric_count < current_replicas and current_replicas > MIN_REPLICAS:
-        log(f"Reducing deployment replicas by one from {current_replicas}")
-        scale_deployment(current_replicas - 1)
+    elif metric_count == 0 and current_replicas > 1:
+        log(f"Reducing deployment replicas from {current_replicas} to 1")
+        log_producer.produce_message(f"Reducing deployment replicas from {current_replicas} to 1")
+        scale_deployment(1)
         return True
-    log(f"No scaling if done as: {metric_value} >= {METRIC_THRESHOLD} and {current_replicas} < {MAX_REPLICAS} and {not isStarted} = False (metric_value >= METRIC_THRESHOLD and current_replicas < MAX_REPLICAS and not isStarted)")
-    log(f"                  and: {metric_count} < {current_replicas} and {current_replicas} > {MIN_REPLICAS} = False (metric_count < current_replicas and current_replicas > MIN_REPLICAS)")
+    log(f"No scaling performed. current_replicas: {current_replicas}, metric_count: {metric_count}, metric_value: {metric_value}, len(metric_data): {len(metric_data)}")
     return False
 
 
 def checkMetricsJob():
-    crunchStarted = False
-    while True:
-        # Wait before checking metrics again
-        crunchStarted = checkMetrics(crunchStarted)
-        if not crunchStarted:
-            break
+    while checkMetrics():
         time.sleep(10)
 
-def scheduleIntervalJob(scheduler):
-    scheduler.add_job(checkMetricsJob, trigger=IntervalTrigger(minutes=2), id='metrics_job', replace_existing=True, max_instances=10)
-
-scheduler = BlockingScheduler()
-scheduleIntervalJob(scheduler)
-
 checkMetrics()
-
-scheduler.start()
