@@ -4,11 +4,11 @@ from confluent_kafka.admin import AdminClient, OffsetSpec
 from confluent_kafka import TopicPartition, ConsumerGroupTopicPartitions
 from utils import log, logging
 
-BROKER = "kafka:9092"
+KAFKA_BROKER = "kafka:9092"
 
 def calculate_consumer_group_lag(topic, consumer_group):
     # Initialize AdminClient to get metadata and offsets
-    admin_client = AdminClient({'bootstrap.servers': BROKER})
+    admin_client = AdminClient({'bootstrap.servers': KAFKA_BROKER})
     
     # Get topic metadata
     metadata = admin_client.list_topics(timeout=10)
