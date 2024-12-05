@@ -57,9 +57,13 @@ def checkMetrics():
     current_replicas = deployment.spec.replicas
     
     # Scaling logic
-    if current_replicas == 1 and metric_count > 1:
-        log(f"Initializing crunching of data with {metric_count} replicas")
-        log_producer.produce_message("AUTOSCALER", f"Initializing crunching of data with {metric_count} replicas")
+    if current_replicas < metric_count:
+        if current_replicas == 1:
+            log(f"Initializing crunching of data with {metric_count} replicas")
+            log_producer.produce_message("AUTOSCALER", f"Initializing crunching of data with {metric_count} replicas")
+        else:
+            log(f"Scaling up from {current_replicas} to {metric_count} replicas")
+            log_producer.produce_message("AUTOSCALER", f"Scaling up from {current_replicas} to {metric_count} replicas")
         scale_deployment(metric_count)
         return True
     elif metric_count == 0 and current_replicas > 1:
