@@ -68,7 +68,7 @@ def checkMetrics():
         return True
     elif metric_count == 0 and current_replicas > 1:
         log(f"Reducing deployment replicas from {current_replicas} to 1")
-        log_producer.produce_message(f"Reducing deployment replicas from {current_replicas} to 1")
+        log_producer.produce_message("AUTOSCALER", f"Reducing deployment replicas from {current_replicas} to 1")
         scale_deployment(1)
         return True
     log(f"No scaling performed. current_replicas: {current_replicas}, metric_count: {metric_count}, metric_value: {metric_value}, len(metric_data): {len(metric_data)}")
