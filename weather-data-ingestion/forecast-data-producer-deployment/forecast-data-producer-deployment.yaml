@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: weather-forecast-data-producer
-        image: madswb/weather_forecast_data_producer:latest
+        image: madswb/weather-forecast-data-producer:latest
         env:
         - name: HOSTNAME
           valueFrom:

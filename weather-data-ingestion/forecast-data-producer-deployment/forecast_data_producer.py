@@ -66,21 +66,24 @@ def download_and_process_forecast_data() -> bool:
     NoValidUrlFound = True
     while NoValidUrlFound:
         
-        log('Polling for next url. . .')
-        msg, filename, record = consumer.consume_message(-1) # Wait infinitelly
+        for i in range(3):
+            log(f'Polling for next url (60s). . . try {i+1}')
+            msg, filename, record = consumer.consume_message(60)
+            if record is not None:
+                break
         if record is None:
             return False
 
         url = record['url']
 
         log(f'Key: "{filename}" consumed from partition: {msg.partition()} value: "{url}"')
-        log_producer.produce_message(record['properties']['modelRun'], record=f'Key: "{filename}" consumed from partition: {msg.partition()} value: "{url}"')
+        log_producer.produce_message(f'{record['properties']['modelRun']}_{record['properties']['datetime']}', record=f'Key: "{filename}" consumed from partition: {msg.partition()} value: "{url}"')
 
         if not os.path.exists(filename):
             # Download file
             response = requests.get(url)
             if response.status_code != 200:
-                log_producer.produce_message(record['properties']['modelRun'], record=f'Url did not return 200, but instead {response.status_code}. Maybe it\'s too old')
+                log_producer.produce_message(f'{record['properties']['modelRun']}_{record['properties']['datetime']}', record=f'Url did not return 200, but instead {response.status_code}. Maybe it\'s too old')
                 log(f'Url did not return 200, but instead {response.status_code}. Maybe it\'s too old. Committing message because it\'s obsolete', level=logging.ERROR)
                 consumer.commit(msg=msg)
                 continue  
@@ -170,7 +173,7 @@ def download_and_process_forecast_data() -> bool:
             missed_attempts = missed_attempts +1
 
     log_string = f"Successfully produced {len(weather_stations) - missed_attempts} messages{". Lost " + missed_attempts + " messages" if missed_attempts < 0 else ""}"
-    log_producer.produce_message(f"Model Run: {record['properties']['modelRun']}", log_string)
+    log_producer.produce_message(f'{record['properties']['modelRun']}_{record['properties']['datetime']}', log_string)
     log(log_string)
 
     #wait for all messages to be delivered

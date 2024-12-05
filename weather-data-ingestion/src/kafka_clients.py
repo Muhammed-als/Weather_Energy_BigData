@@ -53,8 +53,8 @@ class KafkaConsumer:
             'auto.offset.reset': offset,
             'on_commit': on_consume_commit,
             'enable.auto.commit': enable_auto_commit,
-            'max.poll.interval.ms': 3000000,            # [ms] = 50 min
-            'session.timeout.ms': 3000000               # [ms] = 50 min
+            'max.poll.interval.ms': 1200000,            # [ms] = 20 min
+            #'session.timeout.ms': 3000000               # [ms] = 50 min
         }
         if client_id is not None:
             consumer_conf['client.id'] = client_id
@@ -65,7 +65,10 @@ class KafkaConsumer:
         self.consumer.subscribe([self.topic])
 
     def consume_message(self, timeout = 5):
-        msg = self.consumer.poll(timeout)
+        if timeout is None:
+            msg = self.consumer.poll()
+        else:
+            msg = self.consumer.poll(timeout)
         
         if msg is None or msg.key() is None or msg.value() is None:
             return None, None, None
