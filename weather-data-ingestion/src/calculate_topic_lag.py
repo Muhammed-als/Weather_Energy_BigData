@@ -2,7 +2,7 @@
 
 from confluent_kafka.admin import AdminClient, OffsetSpec
 from confluent_kafka import TopicPartition, ConsumerGroupTopicPartitions
-from utils import log, logging
+from src.utils import log, logging
 
 KAFKA_BROKER = "kafka:9092"
 
