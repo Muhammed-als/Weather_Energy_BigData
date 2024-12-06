@@ -1,2 +1,3 @@
 *.grib
 /weather-data-ingestion/horizontal-scaling-application/group-07-kubeconfig
+group-07-kubeconfig

@@ -5,7 +5,7 @@ from src.utils import log, logging
 from src.kafka_clients import KafkaProducer
 
 # Load the Kubernetes configuration
-CONFIG_PATH = 'weather-data-ingestion/atoscaler-application/group-07-kubeconfig'
+CONFIG_PATH = 'src/group-07-kubeconfig'
 config.load_kube_config(config_file=CONFIG_PATH)
 
 DMI_FORECAST_DATA_LOG_TOPIC = 'DMI_FORECAST_DATA_LOG'
