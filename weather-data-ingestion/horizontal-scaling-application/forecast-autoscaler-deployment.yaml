@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: weather-forecast-url-producer
+  name: weather-forecast-data-producer-autoscaler
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: weather-forecast-url-producer
+      app: weather-forecast-data-producer-autoscaler
   template:
     metadata:
       labels:
-        app: weather-forecast-url-producer
+        app: weather-forecast-data-producer-autoscaler
     spec:
       containers:
-      - name: weather-forecast-url-producer
-        image: madswb/forecast-autoscaler-img
+      - name: weather-forecast-data-producer-autoscaler
+        image: madswb/weather-forecast-data-producer-autoscaler:latest
         resources:
           requests:
             cpu: "250m"
