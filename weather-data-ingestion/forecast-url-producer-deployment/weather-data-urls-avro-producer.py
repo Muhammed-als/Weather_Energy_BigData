@@ -87,7 +87,7 @@ def clearSchedulerJobs(scheduler, status_interval_min = 30):
     return
 
 def scheduleCronJob(scheduler):
-    scheduler.add_job(cronJob, CronTrigger(hour='1-23/3', minute=0, second=0), id='main_job', replace_existing=True, max_instances=10) # Old timer value */3, now fires every 3rd hour in the interval between 1-23 so: 1, 4, 7, 10, 13, 16, 19, 22
+    scheduler.add_job(cronJob, CronTrigger(hour='2-23/3', minute=0, second=0), id='main_job', replace_existing=True, max_instances=10) # Old timer value */3, now fires every 3rd hour in the interval between 1-23 so: 1, 4, 7, 10, 13, 16, 19, 22
 
 def scheduleIntervalJob(scheduler):
     scheduler.add_job(intervalJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
