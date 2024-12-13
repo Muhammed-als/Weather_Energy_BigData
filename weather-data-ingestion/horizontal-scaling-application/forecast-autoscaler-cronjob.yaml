@@ -3,8 +3,8 @@ kind: CronJob
 metadata:
   name: weather-forecast-data-producer-autoscaler
 spec:
-  successfulJobsHistoryLimit: 10
-  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
   schedule: "*/5 * * * *" # Every 5 minutes
   jobTemplate:
     spec:
