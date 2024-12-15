@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: weather-forecast-data-producer-autoscaler
+  name: weather-forecast-data-avg-producer-autoscaler
 spec:
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
@@ -12,6 +12,6 @@ spec:
         spec:
           restartPolicy: OnFailure
           containers:
-          - name: weather-forecast-data-producer-autoscaler
-            image: madswb/weather-forecast-data-producer-autoscaler:latest
+          - name: weather-forecast-data-avg-producer-autoscaler
+            image: madswb/weather-forecast-data-avg-producer-autoscaler:latest
             imagePullPolicy: Always

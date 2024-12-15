@@ -103,23 +103,24 @@ def download_and_process_forecast_data() -> bool:
     for param in PARAM_NAMES:
         grib_param_list[param] = grbs.select(name=param)[0]
 
+    DMI_FORECAST_DATA_AVG_TOPIC = 'DMI_FORECAST_DATA_AVG'
+
     # Try to query for all messages already in topic to make sure we do not make dublicates 
-    consumer_ckeck_dublicate = KafkaConsumer('DMI_FORECAST_DATA', 'earliest', 'DMI_FORECAST_PRODUCER_DUBLICATE_CHECK_GROUP', use_avro=True, enable_auto_commit=False)
+    consumer_ckeck_dublicate = KafkaConsumer(DMI_FORECAST_DATA_AVG_TOPIC, 'earliest', 'DMI_FORECAST_AVG_PRODUCER_DUBLICATE_CHECK_GROUP', use_avro=True, enable_auto_commit=False)
     filenames_already_in_topic = []
     for i in range(10):
         _, filename_in_topic, _ = consumer_ckeck_dublicate.consume_message()
         if filename_in_topic is None:
-            log(f"No messages consumed. when querying for messages already in DMI_FORECAST_DATA - try: {i}")
+            log(f"No messages consumed. when querying for messages already in {DMI_FORECAST_DATA_AVG_TOPIC} - try: {i}")
         else:
             break 
     while filename_in_topic is not None:
         filenames_already_in_topic.append(filename_in_topic)
         _, filename_in_topic, _ = consumer_ckeck_dublicate.consume_message()
     consumer_ckeck_dublicate.close()
-    log(f"Consumed topic DMI_FORECAST_DATA and found {len(filenames_already_in_topic)} messages")
+    log(f"Consumed topic {DMI_FORECAST_DATA_AVG_TOPIC} and found {len(filenames_already_in_topic)} messages")
 
 
-    DMI_FORECAST_DATA_AVG_TOPIC = 'DMI_FORECAST_DATA_AVG'
     producer = KafkaProducer(topic=DMI_FORECAST_DATA_AVG_TOPIC, avro_schema=AVRO_SCHEMA)
 
     missed_attempts = 0
@@ -131,6 +132,7 @@ def download_and_process_forecast_data() -> bool:
         "humidity": 0,
         "wind_dir": 0,
         "wind_speed": 0,
+        "count": 0
     }
 
     DK2 = {
@@ -141,18 +143,16 @@ def download_and_process_forecast_data() -> bool:
         "humidity": 0,
         "wind_dir": 0,
         "wind_speed": 0,
+        "count": 0
     }
 
-    count_dk1 = 0
-    count_dk2 = 0
     for key, values in weather_stations.items():
         # Skip key if already in topic
         if (weather_stations[key]["Egrid"] == "DK1"):
             tmp = DK1
-            count_dk1 += 1
         else:
             tmp = DK2
-            count_dk2 += 1
+        tmp["count"] += 1
         
         #lat, lon = find_closest_geolocations_to_stations_from_grib(values['coordinates'], latlons)
         lat, lon = weather_stations_forecast_latlons[key]
@@ -169,21 +169,26 @@ def download_and_process_forecast_data() -> bool:
         tmp["wind_dir"] += grib_param_list["10 metre wind direction"].data(lat1=lat, lat2=lat, lon1=lon, lon2=lon)[0][0]
         tmp["wind_speed"] += grib_param_list["10 metre wind speed"].data(lat1=lat, lat2=lat, lon1=lon, lon2=lon)[0][0]
 
+        log(f'Working on {tmp['Egrid']}, key: {key} - generated values: temp_dry: {tmp["temp_dry"]}, cloud_cover: {tmp["cloud_cover"]}, humidity: {tmp["humidity"]}, wind_dir: {tmp["wind_dir"]}, wind_speed: {tmp["wind_speed"]}')
+
     
-    for DKx, count_dkx in ((DK1, count_dk1), (DK2, count_dk2)):
+    for DKx in (DK1, DK2):
         if DKx["key"] in filenames_already_in_topic:
             log(f'Found key already in topic: {DKx["key"]}. Skipping this one')
             continue
+        else:
+            log(f'Generated average for {DKx['Egrid']}, count {DKx["count"]} - AVG values: temp_dry: {DKx["temp_dry"] / DKx["count"]}, cloud_cover: {DKx["cloud_cover"] / DKx["count"]}, humidity: {DKx["humidity"] / DKx["count"]}, wind_dir: {DKx["wind_dir"] / DKx["count"]}, wind_speed: {DKx["wind_speed"] / DKx["count"]}')
+
 
         message = {
             "energyGrid": DKx["Egrid"],
             "observed": record['properties']['datetime'],
             "values": {
-                "temp_dry": DKx["temp_dry"] / count_dkx,
-                "cloud_cover": cloud_cover / count_dkx,
-                "humidity": DKx["humidity"] / count_dkx,
-                "wind_dir": DKx["wind_dir"] / count_dkx,
-                "wind_speed": DKx["wind_speed"] / count_dkx
+                "temp_dry": DKx["temp_dry"] / DKx["count"],
+                "cloud_cover": cloud_cover / DKx["count"],
+                "humidity": DKx["humidity"] / DKx["count"],
+                "wind_dir": DKx["wind_dir"] / DKx["count"],
+                "wind_speed": DKx["wind_speed"] / DKx["count"]
             }
         }
 

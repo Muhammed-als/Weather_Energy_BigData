@@ -17,7 +17,7 @@ apps_v1 = client.AppsV1Api()
 # Constants
 NAMESPACE = "group-07"
 KUBERNETES_OBJECT_TYPE = "deployment" #"statefulset" #"deployment"
-DEPLOYMENT_NAME = "weather-forecast-data-producer"
+DEPLOYMENT_NAME = "weather-forecast-data-avg-producer"
 METRIC_THRESHOLD = 1  # if we have atleast 1 lag in consumer group we should scale
 MIN_REPLICAS = 1
 MAX_REPLICAS = 30
