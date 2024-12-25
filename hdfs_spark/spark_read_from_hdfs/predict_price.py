@@ -1,47 +1,79 @@
-from pyspark.sql import SparkSession
-from pyspark.ml.feature import VectorAssembler
+import sys
 from pyspark.ml.regression import LinearRegressionModel
-from pyspark.sql.functions import from_json, col
-from pyspark.sql.types import StructType, StructField, StringType, FloatType
+from pyspark.sql import SparkSession
+from pyspark.ml.linalg import Vectors
+from kafka import KafkaProducer
+import json
 
-# Initialize Spark Session
-spark = SparkSession.builder.appName("ElectricityPricePrediction").getOrCreate()
+# Constants
+HDFS_MODEL_PATH = "hdfs://namenode:9000/electricity_price_model_with_weather"
+KAFKA_BROKER = "kafka:9092"
+KAFKA_PREDICTION_TOPIC = "predictions"
 
-# Load the trained model
-model = LinearRegressionModel.load("hdfs://hdfs_server:port/model/electricity_price_prediction_model")
+# Log the received arguments
+print(f"Received arguments: {sys.argv}")
 
-# Define schema for Kafka input data
-schema = StructType([
-    StructField("Temperature", StringType(), True),
-    StructField("Wind", StringType(), True),
-    StructField("Sunshine", StringType(), True),
-    StructField("Rain", StringType(), True)
-])
+try:
+    # Parse arguments
+    observed_time = sys.argv[1]
+    energy_grid = sys.argv[2]
+    weather_values = list(map(float, sys.argv[3:]))
 
-# Read data from Kafka
-kafka_df = spark.readStream \
-    .format("kafka") \
-    .option("kafka.bootstrap.servers", "kafka_server:port") \
-    .option("subscribe", "weather_topic") \
-    .load()
+    # Validate inputs
+    if len(weather_values) != 4:
+        raise ValueError("Expected 4 weather values (humidity, temp_dry, wind_speed, cloud_cover).")
+    print(f"Input data: Time={observed_time}, EnergyGrid={energy_grid}, WeatherValues={weather_values}")
 
-# Parse Kafka data and convert columns to float
-parsed_df = kafka_df.selectExpr("CAST(value AS STRING)").select(from_json(col("value"), schema).alias("data")).select("data.*")
-for col_name in schema.fieldNames():
-    parsed_df = parsed_df.withColumn(col_name, F.regexp_replace(F.col(col_name), ",", ".").cast("float"))
+except Exception as e:
+    print(f"Error parsing inputs: {e}")
+    sys.exit(1)
 
-# Assemble features
-assembler = VectorAssembler(inputCols=schema.fieldNames(), outputCol="features")
-data_for_prediction = assembler.transform(parsed_df)
+# Initialize Spark session
+spark = SparkSession.builder \
+    .appName("MetObsPrediction") \
+    .config("spark.ui.enabled", "false") \
+    .getOrCreate()
 
-# Make predictions
-predictions = model.transform(data_for_prediction).select("features", "prediction")
+producer = None
 
-# Write predictions to console (or HDFS/Kafka as needed)
-query = predictions.writeStream \
-    .outputMode("append") \
-    .format("console") \
-    .start()
+try:
+    # Load model
+    print(f"Loading model from {HDFS_MODEL_PATH}...")
+    model = LinearRegressionModel.load(HDFS_MODEL_PATH)
 
-query.awaitTermination()
-spark.stop()
+    # Prepare data for prediction
+    input_df = spark.createDataFrame([(Vectors.dense(weather_values),)], ["features"])
+    print(f"DataFrame created: {input_df.show()}")
+
+    # Make prediction
+    predictions = model.transform(input_df)
+    predicted_price = predictions.collect()[0]["prediction"]
+    print(f"Predicted price: {predicted_price}")
+
+    # Prepare Kafka message
+    output_message = {
+        "time": observed_time,
+        "energyGrid": energy_grid,
+        "price": predicted_price
+    }
+    print(f"Output message: {output_message}")
+
+    # Send to Kafka
+    producer = KafkaProducer(
+        bootstrap_servers=KAFKA_BROKER,
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    )
+    producer.send(KAFKA_PREDICTION_TOPIC, output_message)
+    producer.flush()
+    print("Prediction sent to Kafka.")
+
+except Exception as e:
+    print(f"Error during prediction: {e}")
+    import traceback
+    traceback.print_exc()
+
+finally:
+    if producer:
+        producer.close()
+    spark.stop()
+    print("Spark session stopped.")

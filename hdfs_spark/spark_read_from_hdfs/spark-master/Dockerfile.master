@@ -1,0 +1,22 @@
+FROM bitnami/spark:3.5.2-debian-12-r1
+
+USER root
+
+# Install debugging tools (basic utilities only)
+RUN apt-get update && apt-get install -y \
+    net-tools \
+    iputils-ping \
+    curl \
+    telnet \
+    nano \
+    python3-pip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip3 install numpy
+
+# Expose updated ports
+EXPOSE 7077 8085 4040
+
+USER 1001

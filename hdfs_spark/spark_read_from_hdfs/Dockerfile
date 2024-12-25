@@ -1,6 +1,25 @@
-FROM bde2020/spark-python-template:3.3.0-hadoop3.3
+FROM python:3.8-slim
 
+# Install required system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    python3-dev \
+    libssl-dev \
+    libffi-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip to the latest version
+RUN pip3 install --upgrade pip
+
+# Set the working directory
+WORKDIR /app
+
+# Copy application files
 COPY reader.py /app
+COPY requirements.txt /app
 
-ENV SPARK_APPLICATION_PYTHON_LOCATION /app/reader.py
-ENV SPARK_SUBMIT_ARGS "--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.0"
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r requirements.txt

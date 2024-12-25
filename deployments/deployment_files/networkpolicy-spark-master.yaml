@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: spark-master
+  namespace: group-07
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: master
+      app.kubernetes.io/instance: spark
+  ingress:
+    - from: []
+      ports:
+        - protocol: TCP
+          port: 7077
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9870
+        - protocol: TCP
+          port: 9000
+  egress:
+    - to: []

@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: spark-worker
+  namespace: group-07
+spec:
+  replicas: 5
+  serviceName: spark-headless
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: worker
+    spec:
+      containers:
+      - name: spark-worker
+        image: storm331/custom-spark-worker-debug:latest
+        imagePullPolicy: Always
+        env:
+        - name: SPARK_MODE
+          value: worker
+        - name: SPARK_MASTER_URL
+          value: spark://spark-master-svc:7077
+        - name: SPARK_WORKER_CORES
+          value: "4"
+        - name: SPARK_WORKER_MEMORY
+          value: "6g"
+        - name: SPARK_WORKER_WEBUI_PORT
+          value: "8086"
+        ports:
+        - containerPort: 7078
+          name: worker
+        - containerPort: 8086
+          name: webui
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8086
+          initialDelaySeconds: 180
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8086
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: "2"
+            memory: "6Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"
+        volumeMounts:
+        - mountPath: /opt/bitnami/spark/conf/hdfs-site.xml
+          subPath: hdfs-site.xml
+          name: hdfs-config
+        - mountPath: /opt/bitnami/spark/conf/core-site.xml
+          subPath: core-site.xml
+          name: hdfs-config
+        - mountPath: /opt/bitnami/spark/conf/log4j.properties
+          subPath: log4j.properties
+          name: spark-log-config
+      volumes:
+      - name: hdfs-config
+        configMap:
+          name: hdfs-config
+      - name: spark-log-config
+        configMap:
+          name: spark-log-config
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      securityContext:
+        fsGroup: 1001
+  updateStrategy:
+    type: RollingUpdate
+status:
+  availableReplicas: 2
+  collisionCount: 0
+  currentReplicas: 2
+  currentRevision: spark-worker-844584ff8f
+  observedGeneration: 9
+  readyReplicas: 2
+  replicas: 2
+  updateRevision: spark-worker-844584ff8f
+  updatedReplicas: 2

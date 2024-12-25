@@ -5,17 +5,28 @@ master:
   resources:
     limits:
       cpu: 1
-      memory: 2Gi
+      memory: 4Gi
     requests:
       cpu: 1
-      memory: 1Gi
+      memory: 4Gi
+  configMap:
+    spark-defaults.conf: |
+      spark.master=spark://spark-master-svc:7077
+      spark.hadoop.fs.defaultFS=hdfs://namenode:9000
 worker:
   replicaCount: 2
   resources:
     limits:
-      cpu: 1
-      memory: 2Gi
+      cpu: 4
+      memory: 6Gi
     requests:
-      cpu: 1
-      memory: 1Gi
-      
+      cpu: 4
+      memory: 6Gi
+  configMap:
+    spark-defaults.conf: |
+      spark.master=spark://spark-master-svc:7077
+      spark.hadoop.fs.defaultFS=hdfs://namenode:9000
+
+  
+
+

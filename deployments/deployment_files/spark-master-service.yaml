@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-master-svc
+  namespace: group-07
+  labels:
+    app: spark
+spec:
+  selector:
+    app.kubernetes.io/component: master
+    app.kubernetes.io/instance: spark
+  ports:
+    - name: cluster-port
+      protocol: TCP
+      port: 7077  # Spark master cluster port
+      targetPort: 7077
+    - name: webui-port
+      protocol: TCP
+      port: 8085  # Spark master Web UI port
+      targetPort: 8085
+  clusterIP: None  # Optional: Use if you want a headless service

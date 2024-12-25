@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    meta.helm.sh/release-name: spark
+    meta.helm.sh/release-namespace: group-07
+  labels:
+    app.kubernetes.io/component: master
+    app.kubernetes.io/instance: spark
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: spark
+    app.kubernetes.io/version: 3.5.3
+    helm.sh/chart: spark-9.2.14
+  name: spark-master
+  namespace: group-07
+spec:
+  replicas: 1
+  serviceName: spark-headless
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: master
+      app.kubernetes.io/instance: spark
+      app.kubernetes.io/name: spark
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: master
+        app.kubernetes.io/instance: spark
+        app.kubernetes.io/name: spark
+        app.kubernetes.io/version: 3.5.3
+    spec:
+      containers:
+      - name: spark-master
+        image: storm331/custom-spark-master-debug:latest
+        imagePullPolicy: Always
+        env:
+        - name: SPARK_MODE
+          value: master
+        - name: SPARK_MASTER_PORT
+          value: "7077"
+        - name: SPARK_MASTER_WEBUI_PORT
+          value: "8085"
+        ports:
+        - containerPort: 7077
+          name: cluster
+        - containerPort: 8085
+          name: webui
+        livenessProbe:
+          tcpSocket:
+            port: 7077
+          initialDelaySeconds: 180
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8085
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        volumeMounts:
+        - mountPath: /opt/bitnami/spark/conf/hdfs-site.xml
+          subPath: hdfs-site.xml
+          name: hdfs-config
+        - name: hdfs-config
+          mountPath: /opt/bitnami/spark/conf/core-site.xml
+          subPath: core-site.xml
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "1"
+            memory: 2Gi
+      volumes:
+      - name: hdfs-config
+        configMap:
+          name: hdfs-config
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      securityContext:
+        fsGroup: 1001
+  updateStrategy:
+    type: RollingUpdate
+status:
+  availableReplicas: 1
+  collisionCount: 0
+  currentReplicas: 1
+  currentRevision: spark-master-6885f55d69
+  observedGeneration: 7
+  readyReplicas: 1
+  replicas: 1
+  updateRevision: spark-master-6885f55d69
+  updatedReplicas: 1

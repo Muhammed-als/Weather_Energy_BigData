@@ -5,7 +5,7 @@ metadata:
 spec:
   persistentVolumeClaimRetentionPolicy:
     whenDeleted: Delete
-  serviceName: "datanode"
+  serviceName: "datanode-headless" # Headless service name
   replicas: 3
   selector:
     matchLabels:
@@ -19,7 +19,8 @@ spec:
         - name: datanode
           image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
           ports:
-            - containerPort: 9864
+            - containerPort: 9864  # RPC port
+            - containerPort: 9866  # Data transfer port
           env:
             - name: SERVICE_PRECONDITION
               value: "namenode:9870"
@@ -37,16 +38,22 @@ spec:
         resources:
           requests:
             storage: 1Gi
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: datanode
+  name: datanode-headless
 spec:
   selector:
     app: datanode
+  clusterIP: None  # Makes the service headless
   ports:
-    - name: datanode
+    - name: rpc
       protocol: TCP
       port: 9864
       targetPort: 9864
+    - name: data-transfer
+      protocol: TCP
+      port: 9866
+      targetPort: 9866
