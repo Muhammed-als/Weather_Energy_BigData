@@ -1,0 +1,8 @@
+confluent_kafka
+requests
+python-dateutil
+pyarrow
+httpx
+attrs
+cachetools
+fastavro

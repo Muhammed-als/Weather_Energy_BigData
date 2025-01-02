@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: electricity-data-ingestion
+spec:
+  replicas: 1  
+  selector:
+    matchLabels:
+      app: electricity-data-ingestion
+  template:
+    metadata:
+      labels:
+        app: electricity-data-ingestion
+    spec:
+      containers:
+      - name: electricity-data-ingestion-container
+        image: laugesolvang/electricity-data-ingestion:latest
+        imagePullPolicy: Always 
+        env:
+          - name: KAFKA_BOOTSTRAP
+            value: "kafka:9092"
+          - name: SCHEMA_REGISTRY_URL
+            value: "http://10.152.183.137:8081"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: electricity-data-ingestion-service
+spec:
+  selector:
+    app: electricity-data-ingestion
+  ports:
+    - protocol: TCP
+      port: 80  
+      targetPort: 80  
+  type: LoadBalancer 
