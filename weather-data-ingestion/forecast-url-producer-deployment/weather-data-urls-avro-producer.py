@@ -7,6 +7,8 @@ from src.dmi_forecast_client import DMIForecastClient
 from src.kafka_clients import KafkaProducer, KafkaConsumer
 from src.utils import *
 
+import os
+
 TOPIC_URLS = 'FORECAST_DOWNLOAD_URLS'
 TOPIC_LOGGING = 'FORECAST_DOWNLOAD_URLS_LOG'
 
@@ -45,14 +47,12 @@ def queryDMIandPushToKafka(modelrun_date = None, produce_regardless = False) -> 
     if urlCount == 0 or (urlCount != 61 and not produce_regardless):
         return urlCount
     
-    partition = 0
-    for key, record in zip(keys, records):
-        if not producer.produce_message(key, record, partition % 30):
-            return urlCount
-        partition += 1
+    for messageCount, keyValue in enumerate(zip(keys, records)):
+        producer.produce_message(keyValue[0], keyValue[1]) #, messageCount % 30)
+        producer.flush()
     return urlCount
 
-def queryLatestCommittetModelRun():
+def queryLatestCommittetModelRun(max_try_count = -1):
     groupID = 'Forecast_URL_Query_Group'
     offset = 'earliest'
 
@@ -62,8 +62,13 @@ def queryLatestCommittetModelRun():
     keys = []
     values = []
     msg, key, value = consumer.consume_message()
+    tries = 0
     while msg is None:
+        tries += 1
+        log(f"Consumed message was None. try {tries}", level=logging.ERROR)
         msg, key, value = consumer.consume_message()
+        if tries >= max_try_count and max_try_count != -1:
+            return None
 
     while msg is not None:
         msgs.append(msg)
@@ -81,7 +86,11 @@ def clearSchedulerJobs(scheduler, status_interval_min = 30):
     scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=status_interval_min), id='printstatus_job', replace_existing=True, max_instances=10)
     return
 
+def scheduleCronJob(scheduler):
+    scheduler.add_job(cronJob, CronTrigger(hour='2-23/3', minute=0, second=0), id='main_job', replace_existing=True, max_instances=10) # Old timer value */3, now fires every 3rd hour in the interval between 1-23 so: 1, 4, 7, 10, 13, 16, 19, 22
 
+def scheduleIntervalJob(scheduler):
+    scheduler.add_job(intervalJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
 
 # Current model_run to be queried by intervalJob() and set in cronJob()
 interval_model_run = ''
@@ -89,10 +98,15 @@ interval_model_run = ''
 def cronJob():
     producerLog = KafkaProducer(topic=TOPIC_LOGGING)
 
-    model_run = queryLatestCommittetModelRun()
+    model_run = queryLatestCommittetModelRun(10)
     current_model_run = get_current_model_run()
-    log(f"Latest committet model run:   {model_run}")
     log(f"Current model run is:         {current_model_run}")
+    if model_run is None:
+        log(f"No messages found in topic")
+        model_run = get_earliest_possible_model_run(current_model_run)
+        log(f"Earliest possible model run:  {model_run}")
+    else:
+        log(f"Latest committet model run:   {model_run}")
 
     # If the latest model run matches the current model run then we already have the latest available. Otherwise get the next run
     if current_model_run == model_run:
@@ -119,7 +133,7 @@ def cronJob():
         producerLog.produce_message(f"Model Run: {model_run}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Scheduling retry every 5 minutes")
         clearSchedulerJobs(scheduler, status_interval_min=5)
         interval_model_run = model_run # update variable to hold the model_run to be queried in intervalJob()
-        scheduler.add_job(intervalJob, trigger=IntervalTrigger(minutes=5), id='retry_job', replace_existing=True, max_instances=10)
+        scheduleIntervalJob(scheduler)
         return
 
 def intervalJob():
@@ -130,7 +144,7 @@ def intervalJob():
     if current_model_run != interval_model_run:
         log("current_model_run != interval_model_run - We must have skipped a model run, running cronJob to re-query old runs and catch up")
         clearSchedulerJobs(scheduler)
-        scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
+        scheduleCronJob(scheduler)
         cronJob()
         return
     
@@ -138,8 +152,7 @@ def intervalJob():
     if urlCount == 61: # job finally returned true. reset to 3 hour intival cron job.
         producerLog.produce_message(f"Model Run: {interval_model_run}", f"Successfully produced 61 messages in retry")
         clearSchedulerJobs(scheduler)
-        scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0), id='main_job', replace_existing=True, max_instances=10)
-        return
+        scheduleCronJob(scheduler)
     else:
         producerLog.produce_message(f"Model Run: {interval_model_run}", f"Failed to produce URLS. Returned urlcount: {urlCount}. Retrying again in 5 minutes")
         return
@@ -150,11 +163,12 @@ def printJobSchedulerStatus():
     for job in scheduler.get_jobs():
         log(f"\t{job}")
 
+log(f"Starting weather-forecast-url-producer with id: {os.getenv("HOSTNAME")}")
+
 # Initialize the scheduler
 scheduler = BlockingScheduler()
 
-scheduler.add_job(printJobSchedulerStatus, IntervalTrigger(minutes=30), id='printstatus_job', replace_existing=True, max_instances=10)
-scheduler.add_job(cronJob, CronTrigger(hour='*/3', minute=0, second=0), id='main_job', replace_existing=True, max_instances=10)
+scheduleCronJob(scheduler)
 
 cronJob()
 

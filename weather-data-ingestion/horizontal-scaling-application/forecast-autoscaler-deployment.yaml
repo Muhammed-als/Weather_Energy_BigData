@@ -1,20 +1,27 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: weather-forecast-url-producer
+  name: weather-forecast-data-producer-autoscaler
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: weather-forecast-url-producer
+      app: weather-forecast-data-producer-autoscaler
   template:
     metadata:
       labels:
-        app: weather-forecast-url-producer
+        app: weather-forecast-data-producer-autoscaler
     spec:
       containers:
-      - name: weather-forecast-url-producer
-        image: madswb/mhartihub
+      - name: weather-forecast-data-producer-autoscaler
+        image: madswb/weather-forecast-data-producer-autoscaler:latest
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
         env:
         - name: KAFKA_TOPIC_DOWNLOAD_URLS
           value: "FORECAST_DOWNLOAD_URLS"

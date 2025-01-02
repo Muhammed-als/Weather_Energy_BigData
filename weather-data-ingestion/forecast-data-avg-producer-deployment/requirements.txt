@@ -1,0 +1,5 @@
+apscheduler
+confluent_kafka
+fastavro
+pygrib
+requests

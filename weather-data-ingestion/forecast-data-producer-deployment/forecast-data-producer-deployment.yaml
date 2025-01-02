@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-forecast-data-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-forecast-data-producer
+  template:
+    metadata:
+      labels:
+        app: weather-forecast-data-producer
+    spec:
+      containers:
+      - name: weather-forecast-data-producer
+        image: madswb/weather-forecast-data-producer:latest
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name

@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: weather-forecast-data-producer
+spec:
+  serviceName: weather-forecast-data-producer
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-forecast-data-producer
+  template:
+    metadata:
+      labels:
+        app: weather-forecast-data-producer
+    spec:
+      containers:
+      - name: weather-forecast-data-producer
+        image: madswb/weather_forecast_data_producer:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: data
+          mountPath: /data
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete
+    whenScaled: Delete
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
+  
