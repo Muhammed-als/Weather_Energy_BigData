@@ -6,7 +6,7 @@ KAFKA_BOOTSTRAP: List[str] = ["kafka:9092"]
 SCHEMA_REGISTRY_URL: str = "http://10.152.183.137:8081"
 FETCH_INTERVAL: int = 1
 ITEMS_PER_PAGE: int = 10000
-HISTORICAL_DAYS: int = 365
+HISTORICAL_DAYS: int = 8732
 
 @dataclass
 class DatasetConfig:
@@ -23,7 +23,7 @@ class DatasetConfig:
 DATASETS = {
     "energy_prices": DatasetConfig(
         name="Elspotprices",
-        topic="ENERGY_DATA_AVRO_4",
+        topic="ELECTRICITY_PRICE",
         consumer_group="DEFAULT_CONSUMER",
         api_endpoint="https://api.energidataservice.dk/dataset/{dataset_name}",
         schema="""
@@ -40,36 +40,8 @@ DATASETS = {
             ]
         }
         """,
-        filter_fields={"PriceArea": ["DK1"]},
+        filter_fields={"PriceArea": ["DK1", "DK2"]},
         sort_field="HourUTC desc",
         record_class=EnergyPrice
-    ),
-    "forecasts_5min": DatasetConfig(
-        name="Forecasts_5Min",
-        topic="FORECASTS_DATA_AVRO",
-        consumer_group="FORECASTS_CONSUMER",
-        api_endpoint="https://api.energidataservice.dk/dataset/{dataset_name}",
-        schema="""
-        {
-            "namespace": "energydata.avro",
-            "type": "record",
-            "name": "Forecasts5Min",
-            "fields": [
-                {"name": "Minutes5UTC", "type": "string"},
-                {"name": "Minutes5DK", "type": "string"},
-                {"name": "PriceArea", "type": "string"},
-                {"name": "ForecastType", "type": "string"},
-                {"name": "ForecastDayAhead", "type": ["null", "float"], "default": null},
-                {"name": "Forecast5Hour", "type": ["null", "float"], "default": null},
-                {"name": "Forecast1Hour", "type": ["null", "float"], "default": null},
-                {"name": "ForecastCurrent", "type": ["null", "float"], "default": null},
-                {"name": "TimestampUTC", "type": ["null", "string"], "default": null},
-                {"name": "TimestampDK", "type": ["null", "string"], "default": null}
-            ]
-        }
-        """,
-        filter_fields={"PriceArea": ["DK1"], "ForecastType": ["Solar", "Onshore Wind", "Offshore Wind"]},
-        sort_field="Minutes5UTC desc",
-        record_class=Forecasts5Min
     )
 }

@@ -55,7 +55,7 @@ class HDFSWriter:
         if not records:
             return
 
-        file_path = f"/Electricitydata.parquet"
+        file_path = f"/ElectricityLive.parquet"
 
         try:
             # Convert records to Arrow table
