@@ -4,9 +4,11 @@ from confluent_kafka.schema_registry.avro import AvroSerializer, AvroDeserialize
 from confluent_kafka.serialization import StringSerializer, SerializationContext, MessageField
 import json
 from pprint import pprint
-from src.utils import *
+try:
+    from src.utils import *
+except ImportError:
+    from utils import *
 import os
-
 KAFKA_SERVER = 'kafka:9092'
 SCHEMA_REGISTRY = 'http://kafka-schema-registry:8081'
 

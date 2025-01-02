@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: weather-live-producer
-        image: weather-live-producer-img
+        image: muals21/weather-live-producer-img
         env:
         - name: KAFKA_TOPIC_LIVE_URLS
           value: "KAFKA_TOPIC_LIVE_URLS"
